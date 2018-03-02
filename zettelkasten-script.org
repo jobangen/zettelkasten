@@ -1,0 +1,91 @@
+* combine-logs
+#+begin_src sh :tangle zettelkasten-combine-logs.sh
+#!/bin/bash
+cat ~/Dropbox/db/zk/zettel/*--log.txt > ~/Dropbox/db/zk/zettel-logs-complete.txt
+sed '/^CLOCK:/ d' < ~/Dropbox/db/zk/zettel-logs-complete.txt > ~/Dropbox/db/zk/zettel-logs.txt
+#+end_src
+
+* extract-tags
+#+begin_src sh :tangle zettelkasten-extract-tags.sh
+#!/bin/bash
+INPUTDIR=~/Dropbox/db/zk/zettel
+TEMP=~/.emacs.d/var/zettelkasten/tags
+ZETTEL=*.txt
+
+# Clean up
+rm -f $TEMP/* &&
+
+# Extract
+cd $INPUTDIR &&
+for z in $ZETTEL
+do
+    grep -o '^tags: .*$' $z | \
+    sed -r 's/^tags:\s+//g' > $TEMP/$z
+done &&
+
+# Delete empty files
+cd $TEMP &&
+find . -empty -delete
+#+end_src
+
+* occurences
+#+begin_src sh :tangle zettelkasten-occurences.sh
+#!/bin/bash
+INPUTDIR=~/Dropbox/db/zk/zettel
+TEMP=~/.emacs.d/var/zettelkasten/tags
+ZETTEL=*.txt
+
+cd $TEMP &&
+    cat ~/.emacs.d/var/zettelkasten/tags/*.txt | \
+        tr -s [:blank:] | \
+        tr [:blank:] \\n | \
+        grep -v '^$' | \
+        sort | \
+        uniq -c | \
+        sort -n -r | \
+        sed -e 's/^[ \t]*//' | \
+        tr [:blank:] , > ~/.emacs.d/var/zettelkasten/tags-occ-chain.csv
+cat ~/.emacs.d/var/zettelkasten/tags/*.txt | \
+    tr -s [:blank:] | \
+    sed -r 's/>/, /g' | \
+    tr [:blank:] \\n | \
+    grep -v '^$' | \
+    sort | \
+    uniq -c | \
+    sort -n -r | \
+    sed -e 's/^[ \t]*//' | \
+    tr [:blank:] , > ~/.emacs.d/var/zettelkasten/tags-occ-single.csv
+#+end_src
+
+* similarities
+#+begin_src sh :tangle zettelkasten-similarities.sh
+#!/bin/bash
+INPUTDIR=~/Dropbox/db/zk/zettel
+TEMP=~/.emacs.d/var/zettelkasten/tags
+OUTPUTDIR=~/.emacs.d/var/zettelkasten/similarities
+ZETTEL=*.txt
+COMPARED=*.txt
+
+cd $TEMP &&
+    for z in $ZETTEL
+    do
+        # remove single zettel
+        rm -f $OUTPUTDIR/sim-$z &&
+            # create list of simlarities for each zettel
+            for c in $COMPARED
+            do
+                wdiff -s123 $z $c | \
+                    sed '1d; n; d' | \
+                    tr -s [:blank:] , | \
+                    awk -F "," '{print $2","$4","$5",[[~/Dropbox/db/zk/zettel/"$1"]["$1"]]"}'
+            done | \
+                # sort, cut and output list
+                sort -t "," -rn -k2 | \
+                    head -45 | \
+                    tr -d : | \
+                    column -s ',' -t > $OUTPUTDIR/sim-$z
+    done
+#+end_src
+
+
+
