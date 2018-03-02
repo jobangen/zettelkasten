@@ -75,6 +75,7 @@
         :jump-to-captured t)
       org-capture-templates)
 
+;;;###autoload
 (defun zettelkasten-new-zettel ()
   "Capture a Zettel with org-capture"
   (interactive)
@@ -96,6 +97,7 @@ tags: %^{Type|§index|§content|§proj},
 * Data
 ")
 
+;;;###autoload
 (defun zettelkasten-rename-zettel-upd-links ()
   (interactive)
   (if (equal major-mode 'dired-mode)
@@ -151,10 +153,12 @@ tags: %^{Type|§index|§content|§proj},
   (interactive)
   (find-file zettelkasten-zettel-directory))
 
+;;;###autoload
 (defun zettelkasten-ag-query ()
    (interactive)
    (counsel-ag nil zettelkasten-zettel-directory nil))
 
+;;;###autoload
 (defun zettelkasten-ag-query-symbol-at-point ()
   (interactive)
   (counsel-ag (thing-at-point 'symbol) zettelkasten-zettel-directory nil))
@@ -164,6 +168,7 @@ tags: %^{Type|§index|§content|§proj},
 ;; Handling of Tags
 (defvar zettelkasten-tags-values)
 
+;;;###autoload
 (defun zettelkasten-parse-tags-values ()
   (interactive)
   (setq zettelkasten-tags-values (zettelkasten-collect-tags-values)))
@@ -188,6 +193,7 @@ removed before collection."
          (split-string kstring ",[ \n]*\\|{\\|}" t)))
       zk-tags)))
 
+;;;###autoload
 (defun zettelkasten-parse-values-combined ()
   (interactive)
   (zettelkasten-combine-zettel)
@@ -199,6 +205,7 @@ removed before collection."
 
 
 ;; Edit zettel
+;;;###autoload
 (defun zettelkasten-insert-tags (&optional arg)
   "Make a keywords field.
 If ARG is nil, ask for each keyword and offer completion over
@@ -225,6 +232,7 @@ the body of this command."
           (insert (format "%s%s" (if (> cnt 1) ", " "") k))
           (add-to-list 'zettelkasten-tags-values k))))))
 
+;;;###autoload
 (defun zettelkasten-mark-tags ()
   (interactive)
   (goto-char (point-min))
@@ -235,6 +243,7 @@ the body of this command."
   (set-mark (point))
   (move-end-of-line 1))
 
+;;;###autoload
 (defun zettelkasten-finish-zettel ()
   "Zettelkasten: delete whitespace, save, kill buffer."
   (interactive)
@@ -244,6 +253,7 @@ the body of this command."
 
 
 ;; Zettel output
+;;;###autoload
 (defun zettelkasten-tangle-combined ()
   (interactive)
   (org-babel-tangle-file
@@ -251,12 +261,15 @@ the body of this command."
 
 
 ;; Shell-interaction
+;;;###autoload
 (defun zettelkasten-combine-zettel ()
   (interactive)
-  (shell-command-to-string (concat "cat " zettelkasten-zettel-directory "*.txt > " zettelkasten-main-directory "/zettel-combined.txt")))
+  (shell-command-to-string
+   (concat "cat " zettelkasten-zettel-directory "*.txt > " zettelkasten-main-directory "/zettel-combined.txt")))
 
 
 ;; convenience functions
+;;;###autoload
 (defun zettelkasten-name-of-the-file ()
   "Gets the name of the file the current buffer is based on."
   (interactive)
@@ -264,5 +277,4 @@ the body of this command."
 
 
 (provide 'zettelkasten)
-
 ;;; zettelkasten.el ends here
