@@ -270,6 +270,12 @@ the body of this command."
   (shell-command-to-string
    (concat "cat " zettelkasten-zettel-directory "*.txt > " zettelkasten-main-directory "/zettel-combined.txt")))
 
+;;;###autoload
+(defun zettelkasten-gitstats ()
+  (interactive)
+  (shell-command-to-string (concat "cd ~/Dropbox/db/zk/zettel &&"
+                                   "gitstats .git gitstats &&"
+                                   "firefox 'gitstats/index.html'")))
 
 ;; convenience functions
 ;;;###autoload
