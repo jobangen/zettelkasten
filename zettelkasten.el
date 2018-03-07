@@ -29,6 +29,9 @@
 ;; Zettelkasten
 ;;
 ;;; Code:
+(require 'hydra)
+
+
 (defcustom zettelkasten-main-directory
   (expand-file-name (convert-standard-filename "zettelkasten/") user-emacs-directory)
   "Path for main directory"
@@ -274,6 +277,44 @@ the body of this command."
   "Gets the name of the file the current buffer is based on."
   (interactive)
   (insert (file-name-base (buffer-file-name (window-buffer (minibuffer-selected-window))))))
+
+
+;;;###autoload
+(defhydra hydra-zettelkasten (:hint nil
+                                    :color pink)
+  "
+ ^Zettelkasten^ ^ ^             ^Zettel^             ^ ^              ^Var^
+-^---^--------------------------^-^-----------------^-^-------------^-^---------------
+ _d_: zk        _z_: zettel     _m_: mark tags     _v_: visualize   _s_: sort symbols
+ _b_: bibtex    _q_: query      _t_: insert tags   _cp_: parent     _R_: remem
+ _k_: kill b.   _K_: kill bfs   _f_: finish        _cc_: child      _x_: txt query
+ ^ ^            ^ ^             ^ ^                _cf_: friend     _j_: join line
+"
+  ;;General
+  ("C-s" counsel-grep-or-swiper)
+  ("C-m" job/open-at-point)
+  ("<tab>" org-next-link "next link")
+  ("C-<tab>" org-previous-link "prev link")
+  ("b" ivy-bibtex)
+  ("d" zettelkasten-open-dir)
+  ("k" kill-this-buffer)
+  ("K" projectile-kill-buffers)               ;;proj
+  ("q" zettelkasten-ag-query)                 ;;proj
+  ("Q" zettelkasten-ag-query-symbol-at-point) ;;(proj)
+  ("v" hydra-brain-visualize/body :color blue) ;;brain
+  ("x" zettelkasten-txt-query)                 ;;var
+  ("z" zettelkasten-new-zettel :color blue)    ;;proj
+  ;; Zettel
+  ("cp" org-brain-add-parent)           ;brain
+  ("cc" org-brain-add-child)            ;brain
+  ("cf" org-brain-add-friend)           ;brain
+  ("f" zettelkasten-finish-zettel)      ;zet
+  ("m" zettelkasten-mark-tags)          ;zet
+  ("R" remem-toggle)                    ;var
+  ("s" sort-symbols)                    ;var
+  ("j" join-line)
+  ("t" zettelkasten-insert-tags)        ;zet
+  )
 
 
 (provide 'zettelkasten)
