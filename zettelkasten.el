@@ -209,7 +209,7 @@ removed before collection."
 
 ;; Edit zettel
 ;;;###autoload
-(defun zettelkasten-insert-tags (&optional arg)
+(defun zettelkasten-add-tags (&optional arg)
   "Make a keywords field.
 If ARG is nil, ask for each keyword and offer completion over
 keywords that are already available in the buffer.  Inserting
@@ -219,38 +219,43 @@ bu-keywords-values. Note that if you use ido-ubiquitous, the value of
   `ido-ubiquitous-enable-old-style-default' is temporarily set to t within
 the body of this command."
   (interactive "P")
-  (let ((elist (save-excursion))
-        append)
-    (if (assoc "zk-tags" elist)
-        (progn (setq append t)))
-    (unless arg
-      (let ((cnt 0)
-            k)
-        (while (and (setq k (completing-read
-                             "Tags (RET to quit): " zettelkasten-tags-values nil))
-                    (not (equal k "")))
-          (when append (insert ", ")
-                (setq append nil))
-          (setq cnt (1+ cnt))
-          (insert (format "%s%s" (if (> cnt 1) ", " "") k))
-          (add-to-list 'zettelkasten-tags-values k))))))
+  (save-excursion
+    (goto-char (point-min))
+    (search-forward "tags: " nil t)
+    (search-forward-regexp ",$" nil t)
+    (insert " ")
+    (let ((elist (save-excursion))
+          append)
+      (if (assoc "zk-tags" elist)
+          (progn (setq append t)))
+      (unless arg
+        (let ((cnt 0)
+              k)
+          (while (and (setq k (completing-read
+                               "Tags (RET to quit): " zettelkasten-tags-values nil))
+                      (not (equal k "")))
+            (when append (insert " ")
+                  (setq append nil))
+            (setq cnt (1+ cnt))
+            (insert (format "%s%s," (if (> cnt 1) " " "") k))
+            (add-to-list 'zettelkasten-tags-values k)))))))
 
 ;;;###autoload
-(defun zettelkasten-mark-tags ()
+(defun zettelkasten-sort-tags ()
   (interactive)
   (goto-char (point-min))
-  (search-forward-regexp "tags: " nil t)
-  (move-end-of-line 1)
-  (search-backward-regexp "§" nil t)
-  (search-forward-regexp ", " nil t)
-  (set-mark (point))
-  (move-end-of-line 1))
+  (search-forward "tags: " nil t)
+  (search-forward "§" nil t)
+  (search-forward ", " nil t)
+  (deactivate-mark)
+  (sort-symbols nil (point) (search-forward-regexp ",$" nil nil)))
 
 ;;;###autoload
 (defun zettelkasten-finish-zettel ()
   "Zettelkasten: delete whitespace, save, kill buffer."
   (interactive)
   (delete-trailing-whitespace)
+  (zettelkasten-sort-tags)
   (save-buffer)
   (kill-buffer))
 
