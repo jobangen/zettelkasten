@@ -221,7 +221,7 @@ the body of this command."
   (interactive "P")
   (save-excursion
     (goto-char (point-min))
-    (search-forward "tags: " nil t)
+    (search-forward "tags:" nil t)
     (search-forward-regexp ",$" nil t)
     (insert " ")
     (let ((elist (save-excursion))
@@ -245,7 +245,8 @@ the body of this command."
   (interactive)
   (goto-char (point-min))
   (search-forward "tags: " nil t)
-  (search-forward "§" nil t)
+  (end-of-line)
+  (search-backward "§" nil t)
   (search-forward ", " nil t)
   (deactivate-mark)
   (sort-symbols nil (point) (search-forward-regexp ",$" nil nil)))
