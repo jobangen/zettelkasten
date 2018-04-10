@@ -222,7 +222,7 @@ the body of this command."
   (save-excursion
     (goto-char (point-min))
     (search-forward "tags:" nil t)
-    (search-forward-regexp ",$" nil t)
+    (end-of-line)
     (insert " ")
     (let ((elist (save-excursion))
           append)
