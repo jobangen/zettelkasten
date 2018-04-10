@@ -320,15 +320,16 @@ the body of this command."
 
 
 ;;;###autoload
-(defhydra hydra-zettelkasten (:hint nil
+(defhydra hydra-zettelkasten (:hint t
                                     :color pink)
   "
  ^Zettelkasten^ ^ ^             ^Zettel^             ^ ^              ^Var^
 -^---^--------------------------^-^-----------------^-^-------------^-^---------------
- _d_: zk        _z_: zettel     _m_: mark tags     _v_: visualize   _s_: sort symbols
- _b_: bibtex    _q_: query      _t_: insert tags   _cp_: parent     _R_: remem
- _k_: kill b.   _K_: kill bfs   _f_: finish        _cc_: child      _x_: txt query
- ^ ^            ^ ^             ^ ^                _cf_: friend     _j_: join line
+ _d_: zk        ^ ^             _s_: sort tags        _R_: remem
+ _b_: bibtex    _q_: query      _t_: add tags         _B_: Open Bibkey
+ _k_: kill bfs  _x_: txt query  _f_: finish           _F_: Open Files
+ ^ ^            ^ ^             ^ ^                   _S_: Open Similarities
+ ^ ^            ^ ^             ^ ^                   _j_: join line
 "
   ;;General
   ("C-s" counsel-grep-or-swiper)
@@ -336,24 +337,21 @@ the body of this command."
   ("<tab>" org-next-link "next link")
   ("C-<tab>" org-previous-link "prev link")
   ("b" ivy-bibtex)
+  ("B" zettelkasten-zettel-open-bibkey)
   ("d" zettelkasten-open-dir)
-  ("k" kill-this-buffer)
-  ("K" projectile-kill-buffers)               ;;proj
-  ("q" zettelkasten-ag-query)                 ;;proj
-  ("Q" zettelkasten-ag-query-symbol-at-point) ;;(proj)
+  ("F" zettelkasten-zettel-open-files)
+  ("k" projectile-kill-buffers)                ;;proj
+  ("q" zettelkasten-ag-query)                  ;;proj
+  ("Q" zettelkasten-ag-query-symbol-at-point)  ;;(proj)
   ("v" hydra-brain-visualize/body :color blue) ;;brain
   ("x" zettelkasten-txt-query)                 ;;var
-  ("z" zettelkasten-new-zettel :color blue)    ;;proj
   ;; Zettel
-  ("cp" org-brain-add-parent)           ;brain
-  ("cc" org-brain-add-child)            ;brain
-  ("cf" org-brain-add-friend)           ;brain
   ("f" zettelkasten-finish-zettel)      ;zet
-  ("m" zettelkasten-mark-tags)          ;zet
   ("R" remem-toggle)                    ;var
-  ("s" sort-symbols)                    ;var
+  ("s" zettelkasten-sort-tags)           ;zet
+  ("S" zettelkasten-zettel-open-similarities)
   ("j" join-line)
-  ("t" zettelkasten-insert-tags)        ;zet
+  ("t" zettelkasten-add-tags)        ;zet
   )
 
 
