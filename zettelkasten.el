@@ -241,6 +241,34 @@ the body of this command."
             (add-to-list 'zettelkasten-tags-values k)))))))
 
 ;;;###autoload
+(defun zettelkasten-insert-tags (&optional arg)
+  "Make a keywords field.
+If ARG is nil, ask for each keyword and offer completion over
+keywords that are already available in the buffer.  Inserting
+the empty string will quit the prompt. If the keyword is not already
+present in the buffer, it will be added to the local variable
+bu-keywords-values. Note that if you use ido-ubiquitous, the value of
+  `ido-ubiquitous-enable-old-style-default' is temporarily set to t within
+the body of this command."
+  (interactive "P")
+  (let ((elist (save-excursion))
+        append)
+    (if (assoc "zk-tags" elist)
+        (progn (setq append t)))
+    (unless arg
+      (let ((cnt 0)
+            k)
+        (while (and (setq k (completing-read
+                             "Tags (RET to quit): " zettelkasten-tags-values nil))
+                    (not (equal k "")))
+          (when append (insert " ")
+                (setq append nil))
+          (setq cnt (1+ cnt))
+          (insert (format "%s%s," (if (> cnt 1) " " "") k))
+          (add-to-list 'zettelkasten-tags-values k))))))
+
+
+;;;###autoload
 (defun zettelkasten-sort-tags ()
   (interactive)
   (goto-char (point-min))
