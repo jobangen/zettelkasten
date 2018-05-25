@@ -316,8 +316,8 @@ the body of this command."
 (defun zettelkasten-name-of-the-file ()
   "Gets the name of the file the current buffer is based on."
   (interactive)
-  (insert (file-name-base (buffer-file-name (window-buffer (minibuffer-selected-window))))))
-
+  (insert
+   (file-name-base (buffer-file-name (window-buffer (minibuffer-selected-window))))))
 
 ;;;###autoload
 (defhydra hydra-zettelkasten (:hint t
