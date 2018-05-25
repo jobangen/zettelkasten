@@ -5,8 +5,8 @@
 ;; Author: Jan Ole Bangen <jobangen@gmail.com>
 ;; URL:
 ;; Package-Version: 20170918.2122
-;; Version: 0.0.1
-;; Package-Requires:
+;; Version: 0.1.2
+;; Package-Requires: hydra
 ;; Keywords: Archive
 
 ;; This file is part of GNU Emacs.
