@@ -31,7 +31,6 @@
 ;;; Code:
 (require 'hydra)
 
-
 (defcustom zettelkasten-main-directory
   (expand-file-name (convert-standard-filename "zettelkasten/") user-emacs-directory)
   "Path for main directory"
@@ -66,7 +65,6 @@
   "Path to bibfile"
   :group 'zettelkasten
   :type '(string))
-
 
 ;; Creation and (re)naming of zettel
 (push '("z" "Zettel" plain
@@ -166,8 +164,6 @@ tags: %^{Type|§index|§content|§proj},
   (interactive)
   (counsel-ag (thing-at-point 'symbol) zettelkasten-zettel-directory nil))
 
-
-
 ;; Handling of Tags
 (defvar zettelkasten-tags-values)
 
@@ -205,7 +201,6 @@ removed before collection."
   (zettelkasten-parse-tags-values))
 
 (add-hook 'after-init-hook 'zettelkasten-parse-values-combined)
-
 
 ;; Edit zettel
 ;;;###autoload
@@ -267,7 +262,6 @@ the body of this command."
           (insert (format "%s%s," (if (> cnt 1) " " "") k))
           (add-to-list 'zettelkasten-tags-values k))))))
 
-
 ;;;###autoload
 (defun zettelkasten-sort-tags ()
   (interactive)
@@ -288,14 +282,12 @@ the body of this command."
   (save-buffer)
   (kill-buffer))
 
-
 ;; Zettel output
 ;;;###autoload
 (defun zettelkasten-tangle-combined ()
   (interactive)
   (org-babel-tangle-file
    (concat zettelkasten-main-directory "/zettel-combined.txt")))
-
 
 ;; Shell-interaction
 ;;;###autoload
