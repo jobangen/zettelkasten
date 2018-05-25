@@ -328,7 +328,7 @@ the body of this command."
  _d_: zk        ^ ^             _s_: sort tags        _R_: remem
  _b_: bibtex    _q_: query      _t_: add tags         _B_: Open Bibkey
  _k_: kill bfs  _x_: txt query  _f_: finish           _F_: Open Files
- ^ ^            ^ ^             ^ ^                   _S_: Open Similarities
+ ^ ^            ^ ^             _o_: org-noter        _S_: Open Similarities
  ^ ^            ^ ^             ^ ^                   _j_: join line
 "
   ;;General
@@ -339,21 +339,20 @@ the body of this command."
   ("b" ivy-bibtex)
   ("B" zettelkasten-zettel-open-bibkey)
   ("d" zettelkasten-open-dir)
+  ("f" zettelkasten-finish-zettel)      ;zet
   ("F" zettelkasten-zettel-open-files)
-  ("k" projectile-kill-buffers)                ;;proj
-  ("q" zettelkasten-ag-query)                  ;;proj
-  ("Q" zettelkasten-ag-query-symbol-at-point)  ;;(proj)
+  ("j" join-line)
+  ("k" projectile-kill-buffers) ;;proj
+  ("o" org-noter)
+  ("q" zettelkasten-ag-query)                ;;proj
+  ("Q" zettelkasten-ag-query-symbol-at-point) ;;(proj)
+  ("R" remem-toggle)                          ;var
+  ("s" zettelkasten-sort-tags)                ;zet
+  ("S" zettelkasten-zettel-open-similarities)
+  ("t" zettelkasten-add-tags)                 ;zet
   ("v" hydra-brain-visualize/body :color blue) ;;brain
   ("x" zettelkasten-txt-query)                 ;;var
-  ;; Zettel
-  ("f" zettelkasten-finish-zettel)      ;zet
-  ("R" remem-toggle)                    ;var
-  ("s" zettelkasten-sort-tags)           ;zet
-  ("S" zettelkasten-zettel-open-similarities)
-  ("j" join-line)
-  ("t" zettelkasten-add-tags)        ;zet
   )
-
 
 (provide 'zettelkasten)
 ;;; zettelkasten.el ends here
