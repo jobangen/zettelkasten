@@ -269,16 +269,23 @@ the body of this command."
   (search-forward "tags: " nil t)
   (end-of-line)
   (search-backward "§" nil t)
-  (search-forward ", " nil t)
   (deactivate-mark)
-  (sort-symbols nil (point) (search-forward-regexp ",$" nil nil)))
+  (while (search-forward-regexp ", " nil t)
+    (replace-match ",
+" t nil))
+  (search-backward-regexp "tags:" nil nil)
+  (next-line)
+  (sort-lines nil (point) (search-forward-regexp "^$" nil nil))
+  (my/unfill-region (point) (search-backward-regexp "tags:" nil nil))
+  (org-return)
+  (delete-trailing-whitespace))
 
 ;;;###autoload
 (defun zettelkasten-finish-zettel ()
   "Zettelkasten: delete whitespace, save, kill buffer."
   (interactive)
-  (delete-trailing-whitespace)
   (zettelkasten-sort-tags)
+  (delete-trailing-whitespace)
   (save-buffer)
   (kill-buffer))
 
