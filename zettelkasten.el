@@ -5,7 +5,7 @@
 ;; Author: Jan Ole Bangen <jobangen@gmail.com>
 ;; URL:
 ;; Package-Version: 20170918.2122
-;; Version: 0.1.3
+;; Version: 0.1.4
 ;; Package-Requires: hydra
 ;; Keywords: Archive
 
@@ -263,19 +263,26 @@ the body of this command."
 ;;;###autoload
 (defun zettelkasten-sort-tags ()
   (interactive)
+  ;; goto beginning of zettel
   (goto-char (point-min))
-  (search-forward "tags: " nil t)
+  ;; goto tags
+  (search-forward "tags: " nil nil)
+  ;; goto last 'formschlagwort'
   (end-of-line)
-  (search-backward "§" nil t)
-  (deactivate-mark)
-  (while (search-forward-regexp ", " nil t)
-    (replace-match ",
-" t nil))
+  (search-backward "§" nil nil)
+  ;; replace string in tags-line -- replace-string is for interactive usw only
+  (replace-string ", " ",
+" nil (point) (search-forward-regexp "$" nil nil))
+  ;; goto line after tags
   (search-backward-regexp "tags:" nil nil)
-  (next-line)
+  (forward-line)
+  ;; sort lines
   (sort-lines nil (point) (search-forward-regexp "^$" nil nil))
+  ;; unfill region between end of tags and 'tags:'
   (my/unfill-region (point) (search-backward-regexp "tags:" nil nil))
+  ;; make newline
   (org-return)
+  ;; cleanup
   (delete-trailing-whitespace))
 
 ;;;###autoload
