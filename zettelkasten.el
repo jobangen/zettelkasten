@@ -200,8 +200,6 @@ removed before collection."
               (concat zettelkasten-main-directory "/zettel-combined.txt")))
   (zettelkasten-parse-tags-values))
 
-(add-hook 'after-init-hook 'zettelkasten-parse-values-combined)
-
 ;; Edit zettel
 ;;;###autoload
 (defun zettelkasten-add-tags (&optional arg)
