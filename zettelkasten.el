@@ -5,7 +5,7 @@
 ;; Author: Jan Ole Bangen <jobangen@gmail.com>
 ;; URL:
 ;; Package-Version: 20170918.2122
-;; Version: 0.2.4
+;; Version: 0.3.4
 ;; Package-Requires: hydra
 ;; Keywords: Archive
 
@@ -336,35 +336,37 @@ the body of this command."
 (defhydra hydra-zettelkasten (:hint t
                                     :color pink)
   "
- ^Zettelkasten^ ^ ^             ^Zettel^             ^ ^              ^Var^
--^---^--------------------------^-^-----------------^-^-------------^-^---------------
- _d_: zk        ^ ^             _s_: sort tags        _R_: remem
- _b_: bibtex    _q_: query      _t_: add tags         _B_: Open Bibkey
- _k_: kill bfs  _x_: txt query  _f_: finish           _F_: Open Files
- ^ ^            ^ ^             _o_: org-noter        _S_: Open Similarities
- ^ ^            ^ ^             ^ ^                   _j_: join line
+ ^Zettelkasten^ ^ ^              ^Zettel^              ^Var^
+-^---^---------------------------^-^-------------------^-^-------------------
+ _d_: zk         _z_: new zettel  _s_: sort tags        _r_: remem
+ _b_: bibtex     _q_: query       _t_: add tags         _b_: Open Bibkey
+ _k_: kill bfs  _xq_: txt query  _xs_: finish           _f_: Open Files
+ _r_: recentf   ^ ^               _o_: org-noter        _i_: Open Similarities
+ ^ ^            ^ ^               _l_: store link       _j_: join line
 "
   ;;General
   ("C-s" counsel-grep-or-swiper)
   ("C-m" job/open-at-point)
   ("<tab>" org-next-link "next link")
   ("C-<tab>" org-previous-link "prev link")
-  ("b" ivy-bibtex)
-  ("B" zettelkasten-zettel-open-bibkey)
+  ("b" zettelkasten-zettel-open-bibkey)
   ("d" zettelkasten-open-dir)
-  ("f" zettelkasten-finish-zettel)      ;zet
-  ("F" zettelkasten-zettel-open-files)
+  ("f" zettelkasten-zettel-open-files)
+  ("g" nil "Quit")
   ("j" join-line)
+  ("i" zettelkasten-zettel-open-similarities)
   ("k" projectile-kill-buffers) ;;proj
+  ("l" zettelkasten-zettel-store-link)
   ("o" org-noter)
-  ("q" zettelkasten-ag-query)                ;;proj
+  ("q" zettelkasten-ag-query)                 ;;proj
   ("Q" zettelkasten-ag-query-symbol-at-point) ;;(proj)
-  ("R" remem-toggle)                          ;var
+  ("r" remem-toggle)                          ;var
   ("s" zettelkasten-sort-tags)                ;zet
-  ("S" zettelkasten-zettel-open-similarities)
-  ("t" zettelkasten-add-tags)                 ;zet
-  ("v" hydra-brain-visualize/body :color blue) ;;brain
-  ("x" zettelkasten-txt-query)                 ;;var
+  ("r" projectile-recentf)
+  ("t" zettelkasten-add-tags)                  ;zet
+  ("xq" zettelkasten-txt-query)                ;;var
+  ("xs" zettelkasten-finish-zettel)            ;zet
+  ("z" zettelkasten-new-zettel)
   )
 
 (provide 'zettelkasten)
