@@ -5,7 +5,7 @@
 ;; Author: Jan Ole Bangen <jobangen@gmail.com>
 ;; URL:
 ;; Package-Version: 20170918.2122
-;; Version: 0.1.4
+;; Version: 0.2.4
 ;; Package-Requires: hydra
 ;; Keywords: Archive
 
@@ -293,6 +293,15 @@ the body of this command."
   (delete-trailing-whitespace)
   (save-buffer)
   (kill-buffer))
+
+;;;###autoload
+(defun zettelkasten-zettel-store-link ()
+  (interactive)
+  (save-excursion
+    (goto-char (point-min))
+    (right-char 9)
+    (kill-ring-save (point) (line-end-position))
+    (call-interactively 'org-store-link)))
 
 ;; Zettel output
 ;;;###autoload
