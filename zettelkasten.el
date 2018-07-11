@@ -124,7 +124,7 @@ tags: %^{Type|§index|§content|§proj},
           (wgrep-finish-edit))
       (message "Changed filename without updating links."))
     (find-file (concat zettelkasten-main-directory "/zettelkasten-log.csv"))
-    (beginning-of-buffer)
+    (goto-char (point-min))
     (insert (format-time-string "%Y-%m-%d-%H%M") ", " old-name-base ".txt, " new-name-base ".txt\n")
     (bury-buffer)
     (save-some-buffers)))
