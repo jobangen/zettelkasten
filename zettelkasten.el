@@ -5,7 +5,7 @@
 ;; Author: Jan Ole Bangen <jobangen@gmail.com>
 ;; URL:
 ;; Package-Version: 20170918.2122
-;; Version: 0.3.4
+;; Version: 0.3.5
 ;; Package-Requires: hydra
 ;; Keywords: Archive
 
@@ -140,7 +140,7 @@ tags: %^{Type|§index|§content|§proj},
 (defun zettelkasten-zettel-open-files ()
   (interactive)
   (org-open-link-from-string
-   (concat "file:" zettelkasten-texts-directory (file-name-base) "*.pdf")))
+   (concat "file:" zettelkasten-texts-directory "*" (file-name-base) "*.pdf")))
 
 ;;;###autoload
 (defun zettelkasten-zettel-open-similarities ()
