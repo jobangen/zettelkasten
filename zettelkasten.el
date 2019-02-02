@@ -87,7 +87,7 @@
 #+DATE: %U
 
 * Schlagwörter
-tags: %^{Type|§index|§content|§proj},
+tags: %^{Type|@@index|@index|@content|@proj},
 
 * Inhalt
 
@@ -269,7 +269,7 @@ the body of this command."
   (search-forward "tags: " nil nil)
   ;; goto last 'formschlagwort'
   (end-of-line)
-  (search-backward "§" nil nil)
+  (search-backward "@" nil nil)
   ;; replace string in tags-line -- replace-string is for interactive usw only
   (replace-string ", " ",
 " nil (point) (search-forward-regexp "$" nil nil))
