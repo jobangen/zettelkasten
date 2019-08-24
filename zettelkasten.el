@@ -246,6 +246,12 @@ the body of this command."
   (interactive "P")
   (let ((elist (save-excursion))
         append)
+    (goto-char (point-min))
+    ;; goto tags
+    (search-forward "tags: " nil nil)
+    ;; goto last 'formschlagwort'
+    (end-of-line)
+    (insert " ")
     (if (assoc "zk-tags" elist)
         (progn (setq append t)))
     (unless arg
@@ -258,6 +264,12 @@ the body of this command."
                 (setq append nil))
           (setq cnt (1+ cnt))
           (insert (format "%s%s," (if (> cnt 1) " " "") k))
+          (zettelkasten-sort-tags)
+          (goto-char (point-min))
+          ;; goto tags
+          (search-forward "tags: " nil nil)
+          ;; goto last 'formschlagwort'
+          (end-of-line)
           (add-to-list 'zettelkasten-tags-values k))))))
 
 ;;;###autoload
