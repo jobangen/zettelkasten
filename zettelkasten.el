@@ -5,7 +5,7 @@
 ;; Author: Jan Ole Bangen <jobangen@gmail.com>
 ;; URL:
 ;; Package-Version: 20170918.2122
-;; Version: 0.3.5
+;; Version: 0.4.0
 ;; Package-Requires: hydra
 ;; Keywords: Archive
 
