@@ -275,27 +275,27 @@ the body of this command."
 ;;;###autoload
 (defun zettelkasten-sort-tags ()
   (interactive)
-  ;; goto beginning of zettel
+  (text-mode)
   (goto-char (point-min))
-  ;; goto tags
   (search-forward "tags: " nil nil)
-  ;; goto last 'formschlagwort'
   (end-of-line)
   (search-backward "@" nil nil)
-  ;; replace string in tags-line -- replace-string is for interactive usw only
-  (replace-string ", " ",
-" nil (point) (search-forward-regexp "$" nil nil))
+  (while (re-search-forward ", " nil t)
+    (replace-match ",
+"))
   ;; goto line after tags
   (search-backward-regexp "tags:" nil nil)
   (forward-line)
   ;; sort lines
-  (sort-lines nil (point) (search-forward-regexp "^$" nil nil))
+  (sort-lines nil (point) (forward-sentence))
   ;; unfill region between end of tags and 'tags:'
   (my/unfill-region (point) (search-backward-regexp "tags:" nil nil))
   ;; make newline
-  (org-return)
+  (org-mode)
   ;; cleanup
-  (delete-trailing-whitespace))
+  (delete-trailing-whitespace)
+  ;; (org-return)
+  )
 
 ;;;###autoload
 (defun zettelkasten-finish-zettel ()
