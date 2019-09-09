@@ -5,7 +5,7 @@
 ;; Author: Jan Ole Bangen <jobangen@gmail.com>
 ;; URL:
 ;; Package-Version: 20170918.2122
-;; Version: 0.3.5
+;; Version: 0.4.0
 ;; Package-Requires: hydra
 ;; Keywords: Archive
 
@@ -275,27 +275,27 @@ the body of this command."
 ;;;###autoload
 (defun zettelkasten-sort-tags ()
   (interactive)
-  ;; goto beginning of zettel
+  (text-mode)
   (goto-char (point-min))
-  ;; goto tags
   (search-forward "tags: " nil nil)
-  ;; goto last 'formschlagwort'
   (end-of-line)
   (search-backward "@" nil nil)
-  ;; replace string in tags-line -- replace-string is for interactive usw only
-  (replace-string ", " ",
-" nil (point) (search-forward-regexp "$" nil nil))
+  (while (re-search-forward ", " nil t)
+    (replace-match ",
+"))
   ;; goto line after tags
   (search-backward-regexp "tags:" nil nil)
   (forward-line)
   ;; sort lines
-  (sort-lines nil (point) (search-forward-regexp "^$" nil nil))
+  (sort-lines nil (point) (forward-sentence))
   ;; unfill region between end of tags and 'tags:'
   (my/unfill-region (point) (search-backward-regexp "tags:" nil nil))
   ;; make newline
-  (org-return)
+  (org-mode)
   ;; cleanup
-  (delete-trailing-whitespace))
+  (delete-trailing-whitespace)
+  ;; (org-return)
+  )
 
 ;;;###autoload
 (defun zettelkasten-finish-zettel ()
@@ -335,6 +335,18 @@ the body of this command."
   (shell-command-to-string (concat "cd ~/Dropbox/db/zk/zettel &&"
                                    "gitstats .git gitstats &&"
                                    "firefox 'gitstats/index.html'")))
+
+
+;;;###autoload
+(defun zettelkasten-add-to-index ()
+  (interactive)
+  (save-excursion
+    (goto-char (point-min))
+    (forward-char 9)
+    (let ((zk-title (buffer-substring (point) (line-end-position))))
+      (job/linkmarks-capture)
+      (insert zk-title))
+    (org-capture-finalize)))
 
 ;; convenience functions
 ;;;###autoload
