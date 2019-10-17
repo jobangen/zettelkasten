@@ -274,28 +274,23 @@ the body of this command."
 
 ;;;###autoload
 (defun zettelkasten-sort-tags ()
-  (interactive)
+  (interactive "*")
   (text-mode)
   (goto-char (point-min))
   (search-forward "tags: " nil nil)
   (end-of-line)
+  (setq my-end (point))
   (search-backward "@" nil nil)
-  (while (re-search-forward ", " nil t)
-    (replace-match ",
+  (setq my-beg (point))
+  (save-restriction
+    (narrow-to-region my-beg my-end)
+    (while (search-forward ", " nil t)
+      (replace-match ",
 "))
-  ;; goto line after tags
-  (search-backward-regexp "tags:" nil nil)
-  (forward-line)
-  ;; sort lines
-  (sort-lines nil (point) (forward-sentence))
-  ;; unfill region between end of tags and 'tags:'
-  (my/unfill-region (point) (search-backward-regexp "tags:" nil nil))
-  ;; make newline
-  (org-mode)
-  ;; cleanup
-  (delete-trailing-whitespace)
-  ;; (org-return)
-  )
+    (sort-lines nil (point) my-end)
+    (my/unfill-region my-beg my-end)
+    (delete-trailing-whitespace))
+  (org-mode))
 
 ;;;###autoload
 (defun zettelkasten-finish-zettel ()
