@@ -198,7 +198,8 @@ removed before collection."
   (zettelkasten-combine-zettel)
   (find-file (expand-file-name
               (concat zettelkasten-main-directory "/zettel-combined.txt")))
-  (zettelkasten-parse-tags-values))
+  (zettelkasten-parse-tags-values)
+  (kill-current-buffer))
 
 ;; Edit zettel
 ;;;###autoload
@@ -212,6 +213,9 @@ bu-keywords-values. Note that if you use ido-ubiquitous, the value of
   `ido-ubiquitous-enable-old-style-default' is temporarily set to t within
 the body of this command."
   (interactive "P")
+  (if (boundp 'zettelkasten-tags-values)
+      nil
+    (zettelkasten-parse-values-combined))
   (save-excursion
     (goto-char (point-min))
     (search-forward "tags:" nil t)
