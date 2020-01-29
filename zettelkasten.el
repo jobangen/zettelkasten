@@ -5,7 +5,7 @@
 ;; Author: Jan Ole Bangen <jobangen@gmail.com>
 ;; URL:
 ;; Package-Version: 20170918.2122
-;; Version: 0.4.1
+;; Version: 0.5.0
 ;; Package-Requires: hydra
 ;; Keywords: Archive
 
@@ -130,6 +130,24 @@ tags: %^{Type|@@index|@index|@content|@proj},
     (save-some-buffers)))
 
 ;;; Open from Zettel
+(org-add-link-type "zk" 'org-zettelkasten-open)
+
+(defun org-zettelkasten-open (path)
+  (find-file (concat path "*") t)
+  )
+
+;;;###autoload
+(defun zettelkasten-insert-link (&optional beg end)
+  (interactive)
+  (let ((link-target
+         (read-file-name "Zettel: "))
+        (zettel-description
+         (read-string "Description: ")))
+    (let ((zettel-id
+           (substring (file-name-base link-target) 0 15)))
+      (insert
+       (concat "[[zk:" zettel-id "][" zettel-description "]]")))))
+
 ;;;###autoload
 (defun zettelkasten-zettel-open-bibkey ()
   (interactive)
