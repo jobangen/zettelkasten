@@ -5,7 +5,7 @@
 ;; Author: Jan Ole Bangen <jobangen@gmail.com>
 ;; URL:
 ;; Package-Version: 20170918.2122
-;; Version: 0.4.0
+;; Version: 0.4.1
 ;; Package-Requires: hydra
 ;; Keywords: Archive
 
@@ -213,9 +213,6 @@ bu-keywords-values. Note that if you use ido-ubiquitous, the value of
   `ido-ubiquitous-enable-old-style-default' is temporarily set to t within
 the body of this command."
   (interactive "P")
-  (if (boundp 'zettelkasten-tags-values)
-      nil
-    (zettelkasten-parse-values-combined))
   (save-excursion
     (goto-char (point-min))
     (search-forward "tags:" nil t)
@@ -248,6 +245,9 @@ bu-keywords-values. Note that if you use ido-ubiquitous, the value of
   `ido-ubiquitous-enable-old-style-default' is temporarily set to t within
 the body of this command."
   (interactive "P")
+  (if (boundp 'zettelkasten-tags-values)
+      nil
+    (zettelkasten-parse-values-combined))
   (let ((elist (save-excursion))
         append)
     (goto-char (point-min))
@@ -291,6 +291,8 @@ the body of this command."
     (while (search-forward ", " nil t)
       (replace-match ",
 "))
+    (goto-char (point-min))
+    (forward-line)
     (sort-lines nil (point) my-end)
     (my/unfill-region my-beg my-end)
     (delete-trailing-whitespace))
