@@ -158,9 +158,9 @@ tags: %^{Type|@@index|@index|@content|@proj},
     (org-element-map (org-element-parse-buffer) 'keyword (lambda (el) (when (string-match property (org-element-property :key el)) el)))))
 
 ;;;###autoload
-(defun zettelkasten-insert-link ()
+(defun zettelkasten-insert-link (&optional file)
   (interactive)
-  (find-file (read-file-name "Zettel: "))
+  (find-file (or file (read-file-name "Zettel: ")))
   (save-buffer t)
   (let ((link-target-id
          (substring (file-name-base buffer-file-name) 0 15))
@@ -394,10 +394,11 @@ the body of this command."
   (insert
    (file-name-base (buffer-file-name (window-buffer (minibuffer-selected-window))))))
 
+;;;###autoload
 (defun zk-link-wrapper ()
   (interactive)
   (ivy-read "Links"
-            (matches-in-buffer "zk:[0-9-]+\\|file:.+.txt\\|autocite:[0-9a-zA-Z-]+")
+            (zettelkasten-links-in-buffer "zk:[0-9-]+\\|file:.+.txt\\|autocite:[0-9a-zA-Z-]+")
             :sort nil
             :action 'zettelkasten-open-file-from-linklist))
 
@@ -407,7 +408,7 @@ the body of this command."
          (split-string link ":")))
     (find-file (concat (nth 1 zk-list) "*") t)))
 
-
+;;;###autoload
 (defun zettelkasten-links-in-buffer (regexp &optional buffer)
   "return a list of matches of REGEXP in BUFFER or the current buffer if not given."
   (interactive)
