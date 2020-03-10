@@ -379,18 +379,6 @@ the body of this command."
                                    "gitstats .git gitstats &&"
                                    "firefox 'gitstats/index.html'")))
 
-
-;;;###autoload
-(defun zettelkasten-add-to-index ()
-  (interactive)
-  (save-excursion
-    (goto-char (point-min))
-    (forward-char 9)
-    (let ((zk-title (buffer-substring (point) (line-end-position))))
-      (job/linkmarks-capture)
-      (insert zk-title))
-    (org-capture-finalize)))
-
 ;; convenience functions
 ;;;###autoload
 (defun zettelkasten-name-of-the-file ()
