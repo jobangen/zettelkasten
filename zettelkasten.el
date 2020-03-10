@@ -127,11 +127,10 @@ tags: %^{Type|@@index|@index|@content|@proj},
     (save-some-buffers)))
 
 ;;; Open from Zettel
-(org-add-link-type "zk" 'org-zettelkasten-open)
+(org-link-set-parameters "zk" :follow #'org-zettelkasten-open)
 
 (defun org-zettelkasten-open (path)
-  (find-file (concat path "*") t)
-  )
+  (find-file (concat path "*") t))
 
 ;;;###autoload
 (defun zettelkasten-deadgrep-backlinks ()
@@ -171,17 +170,25 @@ tags: %^{Type|@@index|@index|@content|@proj},
     (insert
      (concat "[[zk:" link-target-id "][" link-target-title "]]"))))
 
+;;;###autoload
+(defun zettelkasten-create-zettel-insert-link-at-point ()
+  (interactive)
+  (org-capture nil "Z")
+  (zettelkasten-insert-link buffer-file-name)
+  (left-char)
+  (org-open-at-point)
+  )
 
 ;;;###autoload
 (defun zettelkasten-zettel-open-bibkey ()
   (interactive)
-  (org-open-link-from-string
+  (org-link-open-from-string
    (concat "file:" zettelkasten-bibliography-file "::" (file-name-base))))
 
 ;;;###autoload
 (defun zettelkasten-zettel-open-files ()
   (interactive)
-  (org-open-link-from-string
+  (org-link-open-from-string
    (concat "file:" zettelkasten-texts-directory "*" (file-name-base) "*.pdf")))
 
 ;;;###autoload
