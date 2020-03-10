@@ -29,7 +29,9 @@
 ;; Zettelkasten
 ;;
 ;;; Code:
+(require 'deadgrep)
 (require 'hydra)
+
 
 (defcustom zettelkasten-main-directory
   (expand-file-name (convert-standard-filename "zettelkasten/") user-emacs-directory)
@@ -67,7 +69,7 @@
   :type '(string))
 
 ;; Creation and (re)naming of zettel
-(push '("z" "Zettel" plain
+(push '("Z" "Zettel" plain
         (file (lambda ()
                 (capture-report-date-file
                  (expand-file-name zettelkasten-zettel-directory))))
@@ -89,13 +91,8 @@
 * Schlagwörter
 tags: %^{Type|@@index|@index|@content|@proj},
 
-* Inhalt
+* %?
 
-* Literatur
-
-* Links & Files
-
-* Data
 ")
 
 ;;;###autoload
@@ -137,16 +134,43 @@ tags: %^{Type|@@index|@index|@content|@proj},
   )
 
 ;;;###autoload
-(defun zettelkasten-insert-link (&optional beg end)
+(defun zettelkasten-deadgrep-backlinks ()
   (interactive)
-  (let ((link-target
-         (read-file-name "Zettel: "))
-        (zettel-description
-         (read-string "Description: ")))
-    (let ((zettel-id
-           (substring (file-name-base link-target) 0 15)))
-      (insert
-       (concat "[[zk:" zettel-id "][" zettel-description "]]")))))
+  (let ((zettel (file-name-base)))
+    (counsel-ag
+     (car (split-string zettel "\s")))))
+
+(defun zettelkasten-link-hint-loop ()
+  (interactive)
+  (goto-char (point-min))
+  (ignore-errors
+    (while t
+      (sleep-for 1)
+      (link-hint-open-link)
+      )))
+
+
+;;; https://emacs.stackexchange.com/questions/21713/how-to-get-property-values-from-org-file-headers
+;;; refactor!
+(defun org-global-props (&optional property buffer)
+  "Get the plists of global org properties of current buffer."
+  (unless property (setq property "PROPERTY"))
+  (with-current-buffer (or buffer (current-buffer))
+    (org-element-map (org-element-parse-buffer) 'keyword (lambda (el) (when (string-match property (org-element-property :key el)) el)))))
+
+;;;###autoload
+(defun zettelkasten-insert-link ()
+  (interactive)
+  (find-file (read-file-name "Zettel: "))
+  (save-buffer t)
+  (let ((link-target-id
+         (substring (file-name-base buffer-file-name) 0 15))
+        (link-target-title
+         (org-element-property :value (car (org-global-props "TITLE")))))
+    (kill-current-buffer)
+    (insert
+     (concat "[[zk:" link-target-id "][" link-target-title "]]"))))
+
 
 ;;;###autoload
 (defun zettelkasten-zettel-open-bibkey ()
@@ -375,6 +399,40 @@ the body of this command."
   (insert
    (file-name-base (buffer-file-name (window-buffer (minibuffer-selected-window))))))
 
+(defun zk-link-wrapper ()
+  (interactive)
+  (ivy-read "Links"
+            (matches-in-buffer "zk:[0-9-]+\\|file:.+.txt\\|autocite:[0-9a-zA-Z-]+")
+            :sort nil
+            :action 'zettelkasten-open-file-from-linklist))
+
+
+(defun zettelkasten-open-file-from-linklist (link)
+  (let ((zk-list
+         (split-string link ":")))
+    (find-file (concat (nth 1 zk-list) "*") t)))
+
+
+(defun zettelkasten-links-in-buffer (regexp &optional buffer)
+  "return a list of matches of REGEXP in BUFFER or the current buffer if not given."
+  (interactive)
+  (let ((matches))
+    (save-match-data
+      (save-excursion
+        (with-current-buffer (or buffer (current-buffer))
+          (save-restriction
+            (widen)
+            (goto-char 1)
+            (while (search-forward-regexp regexp nil t 1)
+              (push (match-string-no-properties 0) matches)))))
+      matches)))
+
+
+
+
+
+
+
 ;;;###autoload
 (defhydra hydra-zettelkasten (:hint t
                                     :color pink)
@@ -406,9 +464,9 @@ the body of this command."
   ("r" remem-toggle)                          ;var
   ("s" zettelkasten-sort-tags)                ;zet
   ("r" projectile-recentf)
-  ("t" zettelkasten-add-tags)                  ;zet
-  ("xq" zettelkasten-txt-query)                ;;var
-  ("xs" zettelkasten-finish-zettel)            ;zet
+  ("t" zettelkasten-add-tags)           ;zet
+  ("xq" zettelkasten-txt-query)         ;;var
+  ("xs" zettelkasten-finish-zettel)     ;zet
   ("z" zettelkasten-new-zettel)
   )
 
