@@ -130,7 +130,7 @@ tags: %^{Type|@@index|@index|@content|@proj},
 (org-link-set-parameters "zk" :follow #'org-zettelkasten-open)
 
 (defun org-zettelkasten-open (path)
-  (find-file (concat path "*") t))
+  (find-file (concat zettelkasten-zettel-directory path "*") t))
 
 ;;;###autoload
 (defun zettelkasten-deadgrep-backlinks ()
@@ -160,7 +160,7 @@ tags: %^{Type|@@index|@index|@content|@proj},
 ;;;###autoload
 (defun zettelkasten-insert-link (&optional file)
   (interactive)
-  (find-file (or file (read-file-name "Zettel: ")))
+  (find-file (or file (read-file-name "Zettel: " zettelkasten-zettel-directory)))
   (save-buffer t)
   (let ((link-target-id
          (substring (file-name-base buffer-file-name) 0 15))
