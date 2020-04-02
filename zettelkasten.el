@@ -31,6 +31,8 @@
 ;;; Code:
 (require 'deadgrep)
 (require 'hydra)
+(require 's)
+(require 'org-el-cache)
 
 
 (defcustom zettelkasten-main-directory
@@ -69,32 +71,64 @@
   :type '(string))
 
 ;; Creation and (re)naming of zettel
+(push '("z" "Zettel append" plain
+        (file (lambda ()
+                (read-file-name "Append to: " zettelkasten-zettel-directory
+                                "zettelkasten-inbox.org")))
+        "** TODO %?
+%i")
+      org-capture-templates)
+
 (push '("Z" "Zettel" plain
         (file (lambda ()
-                (capture-report-date-file
-                 (expand-file-name zettelkasten-zettel-directory))))
+                (let ((name (or zettel-capture-filename (read-string "Name: "))))
+                  (expand-file-name
+                   (concat zettelkasten-zettel-directory
+                           (format-time-string "%Y-%m-%d-%H%M-")
+                           name
+                           ".txt")))))
         (function zettelkasten-zettel-template)
         :immediate-finish t
         :jump-to-captured t)
       org-capture-templates)
 
+
+(defun zettelkasten-title-to-fname (title)
+  (s-replace-all
+   '((" " . "-")
+     (":" . "") ("." . "")
+     ("?" . "") ("," . "") (";" . "")
+     ("ß" . "ss") ("ä" . "ae")
+     ("ü" . "ue") ("ö" . "oe"))
+   (s-downcase title)))
+  
 ;;;###autoload
 (defun zettelkasten-new-zettel ()
   "Capture a Zettel with org-capture"
   (interactive)
-  (org-capture  nil "z"))
+  (let ((zettel-title
+         (read-string "Title: ")))
+    (setq zettel-capture-filename
+          (zettelkasten-title-to-fname zettel-title))
+    (org-capture nil "Z")
+    (end-of-line)
+    (insert zettel-title))
+  (setq zettel-capture-filename nil)
+  (save-buffer))
 
 (defun zettelkasten-zettel-template ()
-  "#+TITLE: %^{Title}
+  "#+TITLE: 
 #+DATE: %U
 
 * Schlagwörter
-tags: %^{Type|@@index|@index|@content|@proj},
+tags: %^{Type|@index|@content|@proj},
 
-* %?
+* 
 
+* Refile
 ")
 
+;; obsolete
 ;;;###autoload
 (defun zettelkasten-rename-zettel-upd-links ()
   (interactive)
@@ -160,36 +194,26 @@ tags: %^{Type|@@index|@index|@content|@proj},
 ;;;###autoload
 (defun zettelkasten-insert-link (&optional file)
   (interactive)
-  (find-file (or file (read-file-name "Zettel: " zettelkasten-zettel-directory)))
-  (save-buffer t)
-  (let ((link-target-id
-         (substring (file-name-base buffer-file-name) 0 15))
-        (link-target-title
-         (org-element-property :value (car (org-global-props "TITLE")))))
-    (kill-current-buffer)
-    (insert
-     (concat "[[zk:" link-target-id "][" link-target-title "]]"))))
+  (let* ((zettel
+          (or file (read-file-name "Zettel: " zettelkasten-zettel-directory)))
+         (zettel-id
+          (s-left 15 (file-name-base zettel)))
+         (zettel-title
+          (with-temp-buffer
+            (insert-file-contents zettel)
+            (org-element-property :value (car (org-global-props "TITLE"))))))
+    (insert (concat "[[zk:" zettel-id "][" zettel-title "]]"))))
 
 ;;;###autoload
 (defun zettelkasten-create-zettel-insert-link-at-point ()
   (interactive)
-  (org-capture nil "Z")
-  (zettelkasten-insert-link buffer-file-name)
+  (zettelkasten-new-zettel)
+  (let ((link-target
+         buffer-file-name))
+    (previous-buffer)
+    (zettelkasten-insert-link link-target))
   (left-char)
-  (org-open-at-point)
-  )
-
-;;;###autoload
-(defun zettelkasten-zettel-open-bibkey ()
-  (interactive)
-  (org-link-open-from-string
-   (concat "file:" zettelkasten-bibliography-file "::" (file-name-base))))
-
-;;;###autoload
-(defun zettelkasten-zettel-open-files ()
-  (interactive)
-  (org-link-open-from-string
-   (concat "file:" zettelkasten-texts-directory "*" (file-name-base) "*.pdf")))
+  (org-open-at-point))
 
 ;;;###autoload
 (defun zettelkasten-zettel-open-similarities ()
@@ -201,7 +225,7 @@ tags: %^{Type|@@index|@index|@content|@proj},
 ;;;###autoload
 (defun zettelkasten-open-dir ()
   (interactive)
-  (find-file zettelkasten-zettel-directory))
+  (find-file (read-file-name "Zettel: " zettelkasten-zettel-directory)))
 
 ;;;###autoload
 (defun zettelkasten-ag-query ()
@@ -422,6 +446,49 @@ the body of this command."
             (while (search-forward-regexp regexp nil t 1)
               (push (match-string-no-properties 0) matches)))))
       matches)))
+
+;;; Cache
+(defun zettelkasten--extract-title (filename el)
+  (org-element-map el 'keyword
+    (lambda (kw)
+      (if (string= (org-element-property :key kw) "TITLE")
+          (org-element-property :value kw)))
+    :first-match t))
+
+(def-org-el-cache
+  zettelkasten-cache
+  '("/home/job/Dropbox/db/zk/zettel")
+  #'zettelkasten--extract-title)
+
+;; Update / Initialize the cache
+(add-hook 'after-save-hook (lambda () (org-el-cache-update zettelkasten-cache)))
+
+;;;###autoload
+(defun zettelkasten-select-zettel ()
+  (interactive)
+  (ivy-read
+   "Zettel: "
+   (org-el-cache-map
+    zettelkasten-cache
+    (lambda (filename entry)
+      (cons entry filename)))
+   :action
+   (lambda (selection)
+     (find-file (cdr selection)))))
+
+(defun org-el-cache--find (paths &optional include-archives)
+  "Generate shell code to search PATHS for org files.
+If INCLUDE-ARCHIVES is non-nil, org_archive files are included,
+too."
+  (if include-archives
+      (format
+       "find %s -name \"[a-Z0-9_]*.org\" -o -name \"[a-Z0-9_]*.org_archive\" "
+       (mapconcat 'identity paths " "))
+    (format
+     "find %s -name \"[a-Z0-9_]*.txt\" -o -name \"[a-Z0-9_]*.org\""
+     (mapconcat 'identity paths " "))))
+
+
 
 
 
