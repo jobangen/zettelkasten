@@ -515,18 +515,21 @@ the body of this command."
 ;; Update / Initialize the cache
 (add-hook 'after-save-hook (lambda () (org-el-cache-update zettelkasten-cache)))
 
-;;;###autoload
-(defun zettelkasten-select-zettel ()
-  (interactive)
+(defun zettelkasten--select-zettel ()
   (ivy-read
    "Zettel: "
    (org-el-cache-map
     zettelkasten-cache
     (lambda (filename entry)
-      (cons entry filename)))
+      (cons
+       (plist-get entry :title)
+       filename)))
+   :preselect "Inbox"
    :action
    (lambda (selection)
-     (find-file (cdr selection)))))
+     (setq zettelkasten-zettel-selected selection)))
+  zettelkasten-zettel-selected)
+
 
 (defun org-el-cache--find (paths &optional include-archives)
   "Generate shell code to search PATHS for org files.
