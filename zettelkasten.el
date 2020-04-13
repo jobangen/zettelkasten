@@ -240,12 +240,15 @@ tags: %^{Type|@index|@content|@proj},
     (insert (format "[[zk:%s][%s]]" zettel-id zettel-title))))
 
 ;;;###autoload
-(defun zettelkasten-create-zettel-insert-link-at-point ()
+(defun zettelkasten-new-zettel-insert-link-at-point ()
   (interactive)
   (zettelkasten-new-zettel)
   (let ((link-target
          buffer-file-name))
     (previous-buffer)
+    (kill-region
+     (region-beginning)
+     (region-end))
     (zettelkasten-insert-link link-target))
   (left-char)
   (org-open-at-point))
