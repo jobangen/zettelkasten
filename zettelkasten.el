@@ -125,9 +125,42 @@
 tags: %^{Type|@index|@content|@proj},
 
 * 
+%i
 
 * Refile
 ")
+
+;;;###autoload
+(defun zettelkasten-subtree-refile ()
+  "Refile subtree to Zettel"
+  (interactive)
+  (org-back-to-heading)
+  (org-todo "TODO")
+  (org-set-tags '("refile"))
+  (org-cut-subtree)
+  (if (equal (buffer-name) "zettelkasten-inbox.org")
+      (find-file (cdr (zettelkasten--select-zettel)))
+    (ivy-read "Links: "
+              (zettelkasten-links-in-buffer)
+              :action
+              (lambda (selection)
+                (find-file (cdr selection)))))
+  (goto-char (point-max))
+  (org-paste-subtree 2)
+  (save-buffer)
+  (previous-buffer))
+
+;;;###autoload
+(defun zettelkasten-subtree-refile-current-file ()
+  (interactive)
+  (counsel-outline)
+  (org-todo "")
+  (org-set-tags '())
+  (org-cut-subtree)
+  (counsel-outline)
+  (end-of-line)
+  (newline)
+  (org-paste-subtree))
 
 ;; obsolete
 ;;;###autoload
