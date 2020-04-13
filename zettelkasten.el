@@ -548,6 +548,11 @@ the body of this command."
      (setq zettelkasten-zettel-selected selection)))
   zettelkasten-zettel-selected)
 
+(defun zettelkasten-open-zettel ()
+  (interactive)
+  (find-file (cdr (zettelkasten--select-zettel)))
+  )
+
 
 (defun org-el-cache--find (paths &optional include-archives)
   "Generate shell code to search PATHS for org files.
