@@ -225,17 +225,19 @@ tags: %^{Type|@index|@content|@proj},
     (org-element-map (org-element-parse-buffer) 'keyword (lambda (el) (when (string-match property (org-element-property :key el)) el)))))
 
 ;;;###autoload
-(defun zettelkasten-insert-link (&optional file)
+(defun zettelkasten-insert-link-at-point (&optional link-target)
   (interactive)
   (let* ((zettel
-          (or file (read-file-name "Zettel: " zettelkasten-zettel-directory)))
+          (or link-target (cdr (zettelkasten--select-zettel))))
          (zettel-id
           (s-left 15 (file-name-base zettel)))
          (zettel-title
-          (with-temp-buffer
-            (insert-file-contents zettel)
-            (org-element-property :value (car (org-global-props "TITLE"))))))
-    (insert (concat "[[zk:" zettel-id "][" zettel-title "]]"))))
+          (read-string "Title: "
+                       (with-temp-buffer
+                         (insert-file-contents zettel)
+                         (org-element-property
+                          :value (car (org-global-props "TITLE")))))))
+    (insert (format "[[zk:%s][%s]]" zettel-id zettel-title))))
 
 ;;;###autoload
 (defun zettelkasten-create-zettel-insert-link-at-point ()
