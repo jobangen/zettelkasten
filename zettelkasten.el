@@ -543,13 +543,10 @@ too."
      "find %s -name \"[a-Z0-9_]*.txt\" -o -name \"[a-Z0-9_]*.org\""
      (mapconcat 'identity paths " "))))
 
-
-
-
-
-
-
-
+;;;###autoload
+(defun zettelkasten-force-update-cache ()
+  (interactive)
+  (org-el-cache-force-update zettelkasten-cache))
 
 ;;;###autoload
 (defhydra hydra-zettelkasten (:hint t
