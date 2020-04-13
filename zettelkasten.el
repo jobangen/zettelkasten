@@ -93,11 +93,12 @@
       org-capture-templates)
 
 
-(defun zettelkasten-title-to-fname (title)
+(defun zettelkasten--title-to-fname (title)
   (s-replace-all
    '((" " . "-")
-     (":" . "") ("." . "")
-     ("?" . "") ("," . "") (";" . "")
+     (":" . "") ("." . "") ("," . "") (";" . "")
+     ("?" . "") ("!" . "")
+     ("\"" . "") ("'" . "")
      ("ß" . "ss") ("ä" . "ae")
      ("ü" . "ue") ("ö" . "oe"))
    (s-downcase title)))
@@ -109,7 +110,7 @@
   (let ((zettel-title
          (read-string "Title: ")))
     (setq zettel-capture-filename
-          (zettelkasten-title-to-fname zettel-title))
+          (zettelkasten--title-to-fname zettel-title))
     (org-capture nil "Z")
     (end-of-line)
     (insert zettel-title))
