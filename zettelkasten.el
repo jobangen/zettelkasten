@@ -504,8 +504,13 @@ the body of this command."
 
 (def-org-el-cache
   zettelkasten-cache
-  '("/home/job/Dropbox/db/zk/zettel")
-  #'zettelkasten--extract-title)
+  (list zettelkasten-zettel-directory)
+  (lambda (filename el)
+    (list
+     :file filename
+     :title (zettelkasten--extract-title filename el)
+     :id (s-left 15 (file-name-base filename))))
+)
 
 ;; Update / Initialize the cache
 (add-hook 'after-save-hook (lambda () (org-el-cache-update zettelkasten-cache)))
