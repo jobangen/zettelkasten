@@ -473,7 +473,7 @@ the body of this command."
 (defun zk-link-wrapper ()
   (interactive)
   (ivy-read "Links"
-            (zettelkasten-links-in-buffer "zk:[0-9-]+\\|file:.+.txt\\|autocite:[0-9a-zA-Z-]+")
+            (zettelkasten-links-in-buffer)
             :sort nil
             :action 'zettelkasten-open-file-from-linklist))
 
@@ -484,19 +484,33 @@ the body of this command."
     (find-file (concat (nth 1 zk-list) "*") t)))
 
 ;;;###autoload
-(defun zettelkasten-links-in-buffer (regexp &optional buffer)
-  "return a list of matches of REGEXP in BUFFER or the current buffer if not given."
+(defun zettelkasten-links-in-buffer ()
+  "Return alist (title . fname) of linked Zettel."
   (interactive)
   (let ((matches))
     (save-match-data
       (save-excursion
-        (with-current-buffer (or buffer (current-buffer))
+        (with-current-buffer (current-buffer)
           (save-restriction
             (widen)
             (goto-char 1)
-            (while (search-forward-regexp regexp nil t 1)
-              (push (match-string-no-properties 0) matches)))))
-      matches)))
+            (while (search-forward-regexp "zk:[0-9-]+" nil t 1)
+              (push (s-chop-prefix "zk:"
+                                   (match-string-no-properties 0))
+                    matches))))))
+    (let (match-alist)
+      (dolist (zettel-id matches)
+        (let* ((zettel-fname
+                (car (file-expand-wildcards
+                      (concat zettelkasten-zettel-directory zettel-id "*"))))
+               (zettel-title
+                (with-temp-buffer
+                  (insert-file-contents zettel-fname)
+                  (org-element-property :value (car (org-global-props "TITLE"))))))
+          (push (cons zettel-title zettel-fname)
+                match-alist)))
+      (print match-alist)
+      match-alist)))
 
 ;;; Cache
 (defun zettelkasten--extract-title (filename el)
