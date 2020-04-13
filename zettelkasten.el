@@ -33,7 +33,7 @@
 (require 'hydra)
 (require 's)
 (require 'org-el-cache)
-
+(require 'org-element)
 
 (defcustom zettelkasten-main-directory
   (expand-file-name (convert-standard-filename "zettelkasten/") user-emacs-directory)
