@@ -250,6 +250,19 @@ tags: %^{Type|@index|@content|@proj},
   (org-open-at-point))
 
 ;;;###autoload
+(defun zettelkasten-push-link-to-current ()
+  (interactive)
+  (let ((link-target (buffer-file-name)))
+    (find-file (cdr (zettelkasten--select-zettel)))
+    (goto-char (point-max))
+    (org-insert-heading)
+    (zettelkasten-insert-link link-target)
+    (org-todo "TODO")
+    (org-set-tags '("refile")))
+  (previous-buffer))
+
+
+;;;###autoload
 (defun zettelkasten-zettel-open-similarities ()
   (interactive)
   (find-file
