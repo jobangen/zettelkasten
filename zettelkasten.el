@@ -73,8 +73,7 @@
 ;; Creation and (re)naming of zettel
 (push '("z" "Zettel append" plain
         (file (lambda ()
-                (read-file-name "Append to: " zettelkasten-zettel-directory
-                                "zettelkasten-inbox.org")))
+                (cdr (zettelkasten--select-zettel))))
         "** TODO %?
 %i")
       org-capture-templates)
