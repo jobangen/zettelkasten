@@ -484,7 +484,7 @@ the body of this command."
 
 ;;;###autoload
 (defun zettelkasten-links-in-buffer ()
-  "Return alist (title . fname) of linked Zettel."
+  "Return list of linked zettel-ids."
   (interactive)
   (let ((matches))
     (save-match-data
@@ -494,22 +494,16 @@ the body of this command."
             (widen)
             (goto-char 1)
             (while (search-forward-regexp "zk:[0-9-]+" nil t 1)
-              (push (s-chop-prefix "zk:"
-                                   (match-string-no-properties 0))
+              (push (plist-get
+                     (car
+                      (zettelkasten-query-filename
+                       :id
+                       (s-chop-prefix
+                        "zk:"
+                        (match-string-no-properties 0))))
+                     :file)
                     matches))))))
-    (let (match-alist)
-      (dolist (zettel-id matches)
-        (let* ((zettel-fname
-                (car (file-expand-wildcards
-                      (concat zettelkasten-zettel-directory zettel-id "*"))))
-               (zettel-title
-                (with-temp-buffer
-                  (insert-file-contents zettel-fname)
-                  (org-element-property :value (car (org-global-props "TITLE"))))))
-          (push (cons zettel-title zettel-fname)
-                match-alist)))
-      (print match-alist)
-      match-alist)))
+    matches))
 
 ;;; Cache
 (defun zettelkasten--extract-title (filename el)
@@ -526,7 +520,8 @@ the body of this command."
     (list
      :file filename
      :title (zettelkasten--extract-title filename el)
-     :id (s-left 15 (file-name-base filename)))))
+     :id (s-left 15 (file-name-base filename))
+     :links (zettelkasten-links-in-buffer))))
 
 ;; Update / Initialize the cache
 (add-hook 'after-save-hook (lambda () (org-el-cache-update zettelkasten-cache)))
