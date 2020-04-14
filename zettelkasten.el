@@ -527,8 +527,7 @@ the body of this command."
     (list
      :file filename
      :title (zettelkasten--extract-title filename el)
-     :id (s-left 15 (file-name-base filename))))
-)
+     :id (s-left 15 (file-name-base filename)))))
 
 ;; Update / Initialize the cache
 (add-hook 'after-save-hook (lambda () (org-el-cache-update zettelkasten-cache)))
