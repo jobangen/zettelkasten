@@ -260,7 +260,7 @@ tags: %^{Type|@index|@content|@proj},
     (find-file (cdr (zettelkasten--select-zettel)))
     (goto-char (point-max))
     (org-insert-heading)
-    (zettelkasten-insert-link link-target)
+    (zettelkasten-insert-link-at-point link-target)
     (org-todo "TODO")
     (org-set-tags '("refile")))
   (previous-buffer))
