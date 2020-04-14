@@ -547,6 +547,9 @@ the body of this command."
      (setq zettelkasten-zettel-selected selection)))
   zettelkasten-zettel-selected)
 
+(defun zettelkasten-query-for-data (filename)
+  (org-el-cache-get zettelkasten-cache filename))
+
 (defun zettelkasten-open-zettel ()
   (interactive)
   (find-file (cdr (zettelkasten--select-zettel)))
