@@ -483,26 +483,23 @@ the body of this command."
     (find-file (concat (nth 1 zk-list) "*") t)))
 
 ;;;###autoload
-(defun zettelkasten-links-in-buffer ()
+(defun zettelkasten-links-in-file (filename)
   "Return list of linked zettel-ids."
   (interactive)
   (let ((matches))
-    (save-match-data
-      (save-excursion
-        (with-current-buffer (current-buffer)
-          (save-restriction
-            (widen)
-            (goto-char 1)
-            (while (search-forward-regexp "zk:[0-9-]+" nil t 1)
-              (push (plist-get
-                     (car
-                      (zettelkasten-query-filename
-                       :id
-                       (s-chop-prefix
-                        "zk:"
-                        (match-string-no-properties 0))))
-                     :file)
-                    matches))))))
+    (with-temp-buffer
+      (insert-file-contents filename)
+      (goto-char 1)
+      (while (search-forward-regexp "zk:[0-9-]+" nil t 1)
+        (push (plist-get
+               (car
+                (zettelkasten-query-filename
+                 :id
+                 (s-chop-prefix
+                  "zk:"
+                  (match-string-no-properties 0))))
+               :file)
+              matches)))
     matches))
 
 ;;; Cache
@@ -521,7 +518,7 @@ the body of this command."
      :file filename
      :title (zettelkasten--extract-title filename el)
      :id (s-left 15 (file-name-base filename))
-     :links (zettelkasten-links-in-buffer))))
+     :links (zettelkasten-links-in-file filename))))
 
 ;; Update / Initialize the cache
 (add-hook 'after-save-hook (lambda () (org-el-cache-update zettelkasten-cache)))
@@ -547,6 +544,30 @@ the body of this command."
 (defun zettelkasten-open-zettel ()
   (interactive)
   (find-file (cdr (zettelkasten--select-zettel)))
+  )
+
+(defun zettelkasten-backlinks-to-file (file)
+  "Files linking to FILE."
+  (let ((links)
+        (file (expand-file-name file)))
+    (org-el-cache-each
+     zettelkasten-cache
+     (lambda (filename data)
+       (dolist (link (plist-get data :links))
+         (if (string= file link)
+             (push (cons (plist-get data :title) filename) links)))))
+    links))
+
+;;;###autoload
+(defun zettelkasten-open-backlink ()
+  (interactive)
+  (ivy-read
+   "Zettel: "
+   (zettelkasten-backlinks-to-file (buffer-file-name))
+   :action
+   (lambda (selection)
+     (find-file (cdr selection))
+     ))
   )
 
 
