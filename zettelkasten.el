@@ -229,14 +229,13 @@ tags: %^{Type|@index|@content|@proj},
   (interactive)
   (let* ((zettel
           (or link-target (cdr (zettelkasten--select-zettel))))
+         (zettel-data
+          (zettelkasten-query-for-data zettel))
          (zettel-id
-          (s-left 15 (file-name-base zettel)))
+          (plist-get zettel-data :id))
          (zettel-title
           (read-string "Title: "
-                       (with-temp-buffer
-                         (insert-file-contents zettel)
-                         (org-element-property
-                          :value (car (org-global-props "TITLE")))))))
+                       (plist-get zettel-data :title))))
     (insert (format "[[zk:%s][%s]]" zettel-id zettel-title))))
 
 ;;;###autoload
