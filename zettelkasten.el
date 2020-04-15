@@ -248,7 +248,7 @@ tags: %^{Type|@index|@content|@proj},
     (kill-region
      (region-beginning)
      (region-end))
-    (zettelkasten-insert-link link-target))
+    (zettelkasten-insert-link-at-point link-target))
   (left-char)
   (org-open-at-point))
 
