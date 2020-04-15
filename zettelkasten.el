@@ -324,39 +324,6 @@ removed before collection."
   (zettelkasten-parse-tags-values)
   (kill-current-buffer))
 
-;; Edit zettel
-;;;###autoload
-(defun zettelkasten-add-tags (&optional arg)
-  "Make a keywords field.
-If ARG is nil, ask for each keyword and offer completion over
-keywords that are already available in the buffer.  Inserting
-the empty string will quit the prompt. If the keyword is not already
-present in the buffer, it will be added to the local variable
-bu-keywords-values. Note that if you use ido-ubiquitous, the value of
-  `ido-ubiquitous-enable-old-style-default' is temporarily set to t within
-the body of this command."
-  (interactive "P")
-  (save-excursion
-    (goto-char (point-min))
-    (search-forward "tags:" nil t)
-    (end-of-line)
-    (insert " ")
-    (let ((elist (save-excursion))
-          append)
-      (if (assoc "zk-tags" elist)
-          (progn (setq append t)))
-      (unless arg
-        (let ((cnt 0)
-              k)
-          (while (and (setq k (completing-read
-                               "Tags (RET to quit): " zettelkasten-tags-values nil))
-                      (not (equal k "")))
-            (when append (insert " ")
-                  (setq append nil))
-            (setq cnt (1+ cnt))
-            (insert (format "%s%s," (if (> cnt 1) " " "") k))
-            (add-to-list 'zettelkasten-tags-values k)))))))
-
 ;;;###autoload
 (defun zettelkasten-insert-tags (&optional arg)
   "Make a keywords field.
@@ -371,33 +338,32 @@ the body of this command."
   (if (boundp 'zettelkasten-tags-values)
       nil
     (zettelkasten-parse-values-combined))
-  (let ((elist (save-excursion))
-        append)
-    (goto-char (point-min))
-    ;; goto tags
-    (search-forward "tags: " nil nil)
-    ;; goto last 'formschlagwort'
-    (end-of-line)
-    (insert " ")
-    (if (assoc "zk-tags" elist)
-        (progn (setq append t)))
-    (unless arg
-      (let ((cnt 0)
-            k)
-        (while (and (setq k (completing-read
-                             "Tags (RET to quit): " zettelkasten-tags-values nil))
-                    (not (equal k "")))
-          (when append (insert " ")
-                (setq append nil))
-          (setq cnt (1+ cnt))
-          (insert (format "%s%s," (if (> cnt 1) " " "") k))
-          (zettelkasten-sort-tags)
-          (goto-char (point-min))
-          ;; goto tags
-          (search-forward "tags: " nil nil)
-          ;; goto last 'formschlagwort'
-          (end-of-line)
-          (add-to-list 'zettelkasten-tags-values k))))))
+  (save-excursion
+   (let ((elist (save-excursion))
+         append)
+     (goto-char (point-min))
+     (search-forward "tags: " nil nil)
+     (end-of-line)
+     (insert " ")
+     (if (assoc "zk-tags" elist)
+         (progn (setq append t)))
+     (unless arg
+       (let ((cnt 0)
+             k)
+         (while (and (setq k (completing-read
+                              "Tags (RET to quit): " zettelkasten-tags-values nil))
+                     (not (equal k "")))
+           (when append (insert " ")
+                 (setq append nil))
+           (setq cnt (1+ cnt))
+           (insert (format "%s%s," (if (> cnt 1) " " "") k))
+           (zettelkasten-sort-tags)
+           (goto-char (point-min))
+           ;; goto tags
+           (search-forward "tags: " nil nil)
+           ;; goto last 'formschlagwort'
+           (end-of-line)
+           (add-to-list 'zettelkasten-tags-values k)))))))
 
 ;;;###autoload
 (defun zettelkasten-sort-tags ()
