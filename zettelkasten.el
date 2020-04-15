@@ -493,7 +493,7 @@ the body of this command."
       (while (search-forward-regexp "zk:[0-9-]+" nil t 1)
         (push (plist-get
                (car
-                (zettelkasten-query-filename
+                (zettelkasten-cache-query-key-value
                  :id
                  (s-chop-prefix
                   "zk:"
@@ -538,8 +538,17 @@ the body of this command."
      (setq zettelkasten-zettel-selected selection)))
   zettelkasten-zettel-selected)
 
-(defun zettelkasten-query-for-data (filename)
+(defun zettelkasten-cache-query-filename (filename)
   (org-el-cache-get zettelkasten-cache filename))
+
+(defun zettelkasten-cache-query-key-value (key value)
+  (org-el-cache-select
+   zettelkasten-cache
+   (lambda (filename entry)
+     (--any
+      (string= (plist-get entry key) value)
+      entry))))
+
 
 (defun zettelkasten-open-zettel ()
   (interactive)
