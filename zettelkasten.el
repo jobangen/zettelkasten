@@ -601,6 +601,13 @@ the body of this command."
    (cdr (zettelkasten--select-zettel
          (zettelkasten--get-all-zettel)))))
 
+(defun zettelkasten-open-zettel-collection ()
+  (interactive)
+  (find-file
+   (cdr (zettelkasten--select-zettel
+         (zettelkasten--get-collection-zettel)))))
+
+
 (defun zettelkasten-backlinks-to-file (file)
   "Files linking to FILE."
   (let ((links)
