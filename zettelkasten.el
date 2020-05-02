@@ -562,6 +562,10 @@ the body of this command."
            (push (cons (plist-get data :title) filename) zettel)
          nil)))
     zettel))
+
+(defun zettelkasten--select-zettel (fn)
+  (ivy-read
+   "Zettel: " fn
    :preselect "Inbox"
    :action
    (lambda (selection)
