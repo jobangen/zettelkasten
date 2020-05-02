@@ -549,6 +549,19 @@ the body of this command."
       (cons
        (plist-get entry :title)
        filename))))
+
+(defun zettelkasten--get-collection-zettel ()
+  (let ((zettel)
+        (collection
+         (completing-read "Collection: "
+                          (zettelkasten-cache-get-collection-values))))
+    (org-el-cache-each
+     zettelkasten-cache
+     (lambda (filename data)
+       (if (member collection (plist-get data :collections))
+           (push (cons (plist-get data :title) filename) zettel)
+         nil)))
+    zettel))
    :preselect "Inbox"
    :action
    (lambda (selection)
