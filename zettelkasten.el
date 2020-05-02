@@ -531,11 +531,12 @@ the body of this command."
 (def-org-el-cache
   zettelkasten-cache
   (list zettelkasten-zettel-directory)
-  (lambda (filename el)
+  (lambda (filename data)
     (list
      :file filename
-     :title (zettelkasten--extract-title filename el)
+     :title (zettelkasten-extract-title filename data)
      :id (s-left 15 (file-name-base filename))
+     :collections (zettelkasten-extract-collections filename data)
      :links (zettelkasten-links-in-file filename))))
 
 ;; Update / Initialize the cache
