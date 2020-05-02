@@ -395,6 +395,25 @@ the body of this command."
   (org-mode))
 
 ;;;###autoload
+(defun zettelkasten-zettel-add-collection (&optional collection)
+  (interactive)
+  (save-excursion
+    (goto-char (point-min))
+    (if (search-forward-regexp "^#\\+COLLECTION:" nil t)
+        (end-of-line)
+      (search-forward-regexp "^#\\+DATE:")
+      (end-of-line)
+      (newline)
+      (insert "#+COLLECTION:"))
+    (insert " ")
+    (insert (or collection
+                (completing-read
+                 "Collection: "
+                 (zettelkasten-cache-get-collection-values)))))
+  (if (not collection)
+      (zettelkasten-zettel-add-collection)))
+
+;;;###autoload
 (defun zettelkasten-finish-zettel ()
   "Zettelkasten: delete whitespace, save, kill buffer."
   (interactive)
