@@ -572,6 +572,17 @@ the body of this command."
      (setq zettelkasten-zettel-selected selection)))
   zettelkasten-zettel-selected)
 
+(defun zettelkasten-cache-get-collection-values ()
+  (let ((collections nil))
+    (org-el-cache-each
+     zettelkasten-cache
+     (lambda (filename data)
+       (setq collections
+             (cons
+              (plist-get data :collections)
+              collections))))
+    (delete-dups (-flatten collections))))
+
 (defun zettelkasten-cache-query-filename (filename)
   (org-el-cache-get zettelkasten-cache filename))
 
