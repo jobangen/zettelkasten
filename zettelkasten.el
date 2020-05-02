@@ -73,7 +73,7 @@
 ;; Creation and (re)naming of zettel
 (push '("z" "Zettel append" plain
         (file (lambda ()
-                (cdr (zettelkasten--select-zettel))))
+                (cdr (zettelkasten--select-zettel (zettelkasten--get-all-zettel)))))
         "** TODO %?
 %i")
       org-capture-templates)
