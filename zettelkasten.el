@@ -504,6 +504,30 @@ the body of this command."
 
 (defun zettelkasten-extract-title (filename data)
   (zettelkasten-extract-value data 'keyword "TITLE"))
+
+(defun zettelkasten-extract-collections (filename data)
+  (ignore-errors
+    (let* ((collection-string
+            (zettelkasten-extract-value data 'keyword "COLLECTION"))
+           (collection-split
+            (split-string collection-string))
+           (collection-list nil))
+      (print collection-string)
+      (print collection-split)
+      (dolist (tag collection-split)
+        (if (s-contains? ">" tag)
+            (progn
+              (let* ((splist
+                      (split-string tag ">"))
+                     (appstr (car splist)))
+                (push appstr collection-list)
+                (pop splist)
+                (dolist (tag splist)
+                  (setq appstr (concat appstr ">" tag))
+                  (push appstr collection-list))))
+          (push tag collection-list)))
+      collection-list)))
+
 (def-org-el-cache
   zettelkasten-cache
   (list zettelkasten-zettel-directory)
