@@ -597,8 +597,9 @@ the body of this command."
 
 (defun zettelkasten-open-zettel ()
   (interactive)
-  (find-file (cdr (zettelkasten--select-zettel)))
-  )
+  (find-file
+   (cdr (zettelkasten--select-zettel
+         (zettelkasten--get-all-zettel)))))
 
 (defun zettelkasten-backlinks-to-file (file)
   "Files linking to FILE."
