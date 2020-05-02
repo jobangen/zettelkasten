@@ -495,13 +495,15 @@ the body of this command."
     matches))
 
 ;;; Cache
-(defun zettelkasten--extract-title (filename el)
-  (org-element-map el 'keyword
+(defun zettelkasten-extract-value (data type keyword)
+  (org-element-map data type
     (lambda (kw)
-      (if (string= (org-element-property :key kw) "TITLE")
+      (if (string= (org-element-property :key kw) keyword)
           (org-element-property :value kw)))
     :first-match t))
 
+(defun zettelkasten-extract-title (filename data)
+  (zettelkasten-extract-value data 'keyword "TITLE"))
 (def-org-el-cache
   zettelkasten-cache
   (list zettelkasten-zettel-directory)
