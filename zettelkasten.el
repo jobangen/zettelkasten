@@ -542,15 +542,13 @@ the body of this command."
 ;; Update / Initialize the cache
 (add-hook 'after-save-hook (lambda () (org-el-cache-update zettelkasten-cache)))
 
-(defun zettelkasten--select-zettel ()
-  (ivy-read
-   "Zettel: "
-   (org-el-cache-map
+(defun zettelkasten--get-all-zettel ()
+  (org-el-cache-map
     zettelkasten-cache
     (lambda (filename entry)
       (cons
        (plist-get entry :title)
-       filename)))
+       filename))))
    :preselect "Inbox"
    :action
    (lambda (selection)
