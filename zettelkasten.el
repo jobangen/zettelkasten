@@ -232,9 +232,10 @@ tags:
 (defun zettelkasten-insert-link-at-point (&optional link-target)
   (interactive)
   (let* ((zettel
-          (or link-target (cdr (zettelkasten--select-zettel))))
+          (or link-target
+              (cdr (zettelkasten--select-zettel (zettelkasten--get-all-zettel)))))
          (zettel-data
-          (zettelkasten-query-for-data zettel))
+          (zettelkasten-cache-query-filename zettel))
          (zettel-id
           (plist-get zettel-data :id))
          (zettel-title
