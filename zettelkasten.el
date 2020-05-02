@@ -261,7 +261,7 @@ tags:
 (defun zettelkasten-push-link-to-current ()
   (interactive)
   (let ((link-target (buffer-file-name)))
-    (find-file (cdr (zettelkasten--select-zettel)))
+    (find-file (cdr (zettelkasten--select-zettel (zettelkasten--get-all-zettel))))
     (goto-char (point-max))
     (org-insert-heading)
     (zettelkasten-insert-link-at-point link-target)
