@@ -122,9 +122,10 @@
 (defun zettelkasten-zettel-template ()
   "#+TITLE: 
 #+DATE: %U
+#+COLLECTION: %^{Type|index|content|proj}
 
 * Schlagwörter
-tags: %^{Type|@index|@content|@proj},
+tags:
 
 * 
 %i
