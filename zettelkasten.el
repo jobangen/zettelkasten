@@ -70,6 +70,13 @@
   :group 'zettelkasten
   :type '(string))
 
+
+
+(defcustom zettelkasten-descriptor-chain-sep ">"
+  "Char that separates chained descriptors"
+  :group 'zettelkasten
+  :type '(string))
+
 ;; Creation and (re)naming of zettel
 (push '("z" "Zettel append" plain
         (file (lambda ()
@@ -512,20 +519,20 @@ the body of this command."
            (collection-split
             (split-string collection-string))
            (collection-list nil))
-      (print collection-string)
-      (print collection-split)
-      (dolist (tag collection-split)
-        (if (s-contains? ">" tag)
+      (dolist (descriptor collection-split)
+        (if (s-contains? zettelkasten-descriptor-chain-sep descriptor)
             (progn
-              (let* ((splist
-                      (split-string tag ">"))
-                     (appstr (car splist)))
-                (push appstr collection-list)
-                (pop splist)
-                (dolist (tag splist)
-                  (setq appstr (concat appstr ">" tag))
-                  (push appstr collection-list))))
-          (push tag collection-list)))
+              (let* ((chain-split
+                      (split-string descriptor zettelkasten-descriptor-chain-sep))
+                     (chain-part (car chain-split)))
+                (push chain-part collection-list)
+                (pop chain-split)
+                (dolist (descriptor chain-split)
+                  (setq chain-part
+                        (concat
+                         chain-part zettelkasten-descriptor-chain-sep descriptor))
+                  (push chain-part collection-list))))
+          (push descriptor collection-list)))
       collection-list)))
 
 (def-org-el-cache
