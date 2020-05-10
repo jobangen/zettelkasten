@@ -382,17 +382,15 @@ the body of this command."
   (interactive "*")
   (text-mode)
   (goto-char (point-min))
-  (search-forward "tags: " nil nil)
+  (search-forward "#+DESCRIPTOR:" nil nil)
   (end-of-line)
   (setq my-end (point))
-  (if (search-backward "@" nil t)
-      (beginning-of-line)
-    (search-backward ":"))
+  (beginning-of-line)
   (setq my-beg (point))
   (save-restriction
     (narrow-to-region my-beg my-end)
-    (while (search-forward ", " nil t)
-      (replace-match ",
+    (while (search-forward " " nil t)
+      (replace-match "
 "))
     (goto-char (point-min))
     (forward-line)
