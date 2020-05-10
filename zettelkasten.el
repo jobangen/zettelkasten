@@ -149,7 +149,7 @@ tags:
   (org-set-tags '("refile"))
   (org-cut-subtree)
   (if (equal (buffer-name) "zettelkasten-inbox.org")
-      (find-file (cdr (zettelkasten--select-zettel)))
+      (find-file (cdr (zettelkasten--select-zettel (zettelkasten--get-all-zettel))))
     (ivy-read "Links: "
               (zettelkasten-links-in-buffer)
               :action
