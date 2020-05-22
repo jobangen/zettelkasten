@@ -137,6 +137,15 @@
 
 * Refile")
 
+(defun zettelkasten--linked-in-zettel (zettel)
+  (let ((link-list
+         (plist-get (org-el-cache-get zettelkasten-cache zettel) :links)))
+    (org-el-cache-select
+     zettelkasten-cache
+     (lambda (filename entry)
+       (member filename link-list)))))
+
+
 ;;;###autoload
 (defun zettelkasten-subtree-refile ()
   "Refile subtree to Zettel"
