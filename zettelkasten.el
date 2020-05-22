@@ -155,12 +155,13 @@
   (if (equal (buffer-name) "zettelkasten-inbox.org")
       (find-file (cdr (zettelkasten--select-zettel (zettelkasten--get-all-zettel))))
     (ivy-read "Links: "
-              (zettelkasten-links-in-buffer)
+              (zettelkasten--get-cons-title-fname
+               (zettelkasten--linked-in-zettel (buffer-file-name)))
               :action
               (lambda (selection)
                 (find-file (cdr selection)))))
   (goto-char (point-max))
-  (org-paste-subtree 2)
+  (org-paste-subtree 3)
   (save-buffer)
   (previous-buffer))
 
@@ -276,6 +277,7 @@
     (goto-char (point-max))
     (org-insert-heading)
     (zettelkasten-insert-link-at-point link-target)
+    (org-do-demote)
     (org-todo "TODO")
     (org-set-tags '("refile")))
   (previous-buffer))
