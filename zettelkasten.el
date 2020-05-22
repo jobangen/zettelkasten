@@ -75,6 +75,13 @@
   :group 'zettelkasten
   :type '(string))
 
+(defcustom zettelkasten-descriptor-cycle-threshold 5
+  "Number of remaining Zettel, that break the descriptor cycle"
+  :group 'zettelkasten
+  :type 'number)
+
+
+
 ;; Creation and (re)naming of zettel
 (push '("z" "Zettel append" plain
         (file (lambda ()
@@ -360,7 +367,7 @@ the body of this command."
    (let ((elist (save-excursion))
          append)
      (goto-char (point-min))
-     (search-forward "tags:" nil nil)
+     (search-forward "#+DESCRIPTOR:" nil nil)
      (end-of-line)
      (insert " ")
      (if (assoc "zk-tags" elist)
@@ -374,11 +381,11 @@ the body of this command."
            (when append (insert " ")
                  (setq append nil))
            (setq cnt (1+ cnt))
-           (insert (format "%s%s," (if (> cnt 1) " " "") k))
+           (insert (format "%s%s" (if (> cnt 1) " " "") k))
            (zettelkasten-sort-tags)
            (goto-char (point-min))
            ;; goto tags
-           (search-forward "tags: " nil nil)
+           (search-forward "#+DESCRIPTOR: " nil nil)
            ;; goto last 'formschlagwort'
            (end-of-line)
            (add-to-list 'zettelkasten-tags-values k)))))))
@@ -388,7 +395,13 @@ the body of this command."
   (interactive "*")
   (text-mode)
   (goto-char (point-min))
-  (search-forward "#+DESCRIPTOR:" nil nil)
+  (if (search-forward "#+DESCRIPTOR:" nil t)
+      nil
+    (goto-char (point-max))
+    (search-backward-regexp "^#\\+")
+    (end-of-line)
+    (newline)
+    (insert "#+DESCRIPTOR:"))
   (end-of-line)
   (setq my-end (point))
   (beginning-of-line)
@@ -416,13 +429,35 @@ the body of this command."
       (end-of-line)
       (newline)
       (insert "#+COLLECTION:"))
-    (insert " ")
-    (insert (or collection
-                (completing-read
-                 "Collection: "
-                 (zettelkasten-cache-get-collection-values)))))
+    (insert (concat " "
+                    (or collection
+                        (completing-read
+                         "Collection: "
+                         (zettelkasten-cache-get-collection-values))))))
   (if (not collection)
       (zettelkasten-zettel-add-collection)))
+
+;;;###autoload
+(defun zettelkasten-zettel-add-descriptor (&optional descriptor)
+  (interactive)
+  (save-excursion
+    (goto-char (point-min))
+    (if (search-forward "#+DESCRIPTOR:" nil t)
+        nil
+      (goto-char (point-max))
+      (search-backward-regexp "^#\\+")
+      (end-of-line)
+      (newline)
+      (insert "#+DESCRIPTOR:"))
+    (insert (concat " "
+                    (or descriptor
+                        (completing-read
+                         "Descriptor: "
+                         (zettelkasten-cache-get-descriptor-values))))))
+  (zettelkasten-sort-tags)
+  (if (not descriptor)
+      (zettelkasten-zettel-add-descriptor))
+  )
 
 ;;;###autoload
 (defun zettelkasten-finish-zettel ()
@@ -539,6 +574,30 @@ the body of this command."
           (push descriptor collection-list)))
       collection-list)))
 
+(defun zettelkasten-extract-descriptors (filename data)
+  (ignore-errors
+    (let* ((descriptor-string
+            (zettelkasten-extract-value data 'keyword "DESCRIPTOR"))
+           (descriptor-split
+            (split-string descriptor-string))
+           (descriptor-list nil))
+      (dolist (descriptor descriptor-split)
+        (if (s-contains? zettelkasten-descriptor-chain-sep descriptor)
+            (progn
+              (let* ((chain-split
+                      (split-string descriptor zettelkasten-descriptor-chain-sep))
+                     (chain-part (car chain-split)))
+                (push chain-part descriptor-list)
+                (pop chain-split)
+                (dolist (descriptor chain-split)
+                  (setq chain-part
+                        (concat
+                         chain-part zettelkasten-descriptor-chain-sep descriptor))
+                  (push chain-part descriptor-list))))
+          (push descriptor descriptor-list)))
+      descriptor-list)))
+
+
 (def-org-el-cache
   zettelkasten-cache
   (list zettelkasten-zettel-directory)
@@ -548,35 +607,62 @@ the body of this command."
      :title (zettelkasten-extract-title filename data)
      :id (s-left 15 (file-name-base filename))
      :collections (zettelkasten-extract-collections filename data)
+     :descriptors (zettelkasten-extract-descriptors filename data)
      :links (zettelkasten-links-in-file filename))))
 
 ;; Update / Initialize the cache
 (add-hook 'after-save-hook (lambda () (org-el-cache-update zettelkasten-cache)))
 
+
 (defun zettelkasten--get-all-zettel ()
   (org-el-cache-map
-    zettelkasten-cache
-    (lambda (filename entry)
-      (cons
-       (plist-get entry :title)
-       filename))))
+   zettelkasten-cache
+   (lambda (filename entry)
+     entry)))
 
 (defun zettelkasten--get-collection-zettel ()
-  (let ((zettel)
-        (collection
+  (let ((collection
          (completing-read "Collection: "
                           (zettelkasten-cache-get-collection-values))))
-    (org-el-cache-each
+    (org-el-cache-select
      zettelkasten-cache
-     (lambda (filename data)
-       (if (member collection (plist-get data :collections))
-           (push (cons (plist-get data :title) filename) zettel)
-         nil)))
-    zettel))
+     (lambda (filename entry)
+       (member collection (plist-get entry :collections))))))
 
-(defun zettelkasten--select-zettel (fn)
+(defun zettelkasten--get-descriptor-zettel (&optional entries)
+  (let* ((descriptor
+          (completing-read
+           (format "Descriptor [%s]: " (if entries
+                                           (safe-length entries)
+                                         nil))
+           (if entries
+               (append (zettelkasten-cache-get-descriptor-values entries)
+                       '("Break"))
+             (zettelkasten-cache-get-descriptor-values))))
+         (zettel
+          (if entries
+              (-filter
+               (lambda (entry)
+                 (member descriptor (plist-get entry :descriptors)))
+               entries)
+            (org-el-cache-select
+             zettelkasten-cache
+             (lambda (filename entry)
+               (member descriptor (plist-get entry :descriptors)))))))
+    (if (string= descriptor "Break")
+        entries
+      (if (<= (safe-length zettel) zettelkasten-descriptor-cycle-threshold)
+          zettel
+        (zettelkasten--get-descriptor-zettel zettel)))))
+
+(defun zettelkasten--select-zettel (zettel)
   (ivy-read
-   "Zettel: " fn
+   "Zettel: "
+   (mapcar (lambda (arg)
+             (cons
+              (plist-get arg :title)
+              (plist-get arg :file)))
+           zettel)
    :preselect "Inbox"
    :action
    (lambda (selection)
@@ -593,6 +679,21 @@ the body of this command."
               (plist-get data :collections)
               collections))))
     (delete-dups (-flatten collections))))
+
+(defun zettelkasten-cache-get-descriptor-values (&optional entries)
+  (delete-dups
+   (-flatten
+    (if (not entries)
+        (org-el-cache-map
+         zettelkasten-cache
+         (lambda (filename entry)
+           (plist-get entry :descriptors)))
+
+      (mapcar
+       (lambda (arg)
+         (plist-get arg :descriptors))
+       entries)))))
+
 
 (defun zettelkasten-cache-query-filename (filename)
   (org-el-cache-get zettelkasten-cache filename))
@@ -617,6 +718,24 @@ the body of this command."
   (find-file
    (cdr (zettelkasten--select-zettel
          (zettelkasten--get-collection-zettel)))))
+
+(defun zettelkasten-open-zettel-descriptor ()
+  (interactive)
+  (ivy-read
+   "Zettel: " (zettelkasten--get-cons-title-fname
+                (zettelkasten--get-descriptor-zettel))
+   :preselect "Inbox"
+   :action
+   (lambda (selection)
+     (find-file
+      (cdr selection)))))
+
+(defun zettelkasten--get-cons-title-fname (plist)
+  (mapcar (lambda (arg)
+            (cons
+             (plist-get arg :title)
+             (plist-get arg :file)))
+          plist))
 
 
 (defun zettelkasten-backlinks-to-file (file)
