@@ -130,15 +130,12 @@
   "#+TITLE: 
 #+DATE: %U
 #+COLLECTION: %^{Type|index|content|proj}
-
-* Schlagwörter
-tags:
+#+DESCRIPTOR:
 
 * 
 %i
 
-* Refile
-")
+* Refile")
 
 ;;;###autoload
 (defun zettelkasten-subtree-refile ()
