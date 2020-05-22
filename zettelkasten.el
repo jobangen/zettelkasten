@@ -70,8 +70,6 @@
   :group 'zettelkasten
   :type '(string))
 
-
-
 (defcustom zettelkasten-descriptor-chain-sep ">"
   "Char that separates chained descriptors"
   :group 'zettelkasten
