@@ -557,17 +557,30 @@
       (string= (plist-get entry key) value)
       entry))))
 
+
 (defun zettelkasten-open-zettel ()
   (interactive)
-  (find-file
-   (cdr (zettelkasten--select-zettel
-         (zettelkasten--get-all-zettel)))))
+  (ivy-read
+   (format "Zettel [%s]: " (car zettelkasten-context-filter))
+   (zettelkasten--get-cons-title-fname
+    (zettelkasten--get-all-zettel))
+   :preselect "Inbox"
+   :action
+   (lambda (selection)
+     (find-file
+      (cdr selection)))))
 
 (defun zettelkasten-open-zettel-collection ()
   (interactive)
-  (find-file
-   (cdr (zettelkasten--select-zettel
-         (zettelkasten--get-collection-zettel)))))
+  (ivy-read
+   (format "Zettel [%s]: " (car zettelkasten-context-filter))
+   (zettelkasten--get-cons-title-fname
+    (zettelkasten--get-collection-zettel))
+   :preselect "Inbox"
+   :action
+   (lambda (selection)
+     (find-file
+      (cdr selection)))))
 
 (defun zettelkasten-open-zettel-descriptor ()
   (interactive)
