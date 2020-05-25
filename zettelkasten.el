@@ -69,6 +69,17 @@
   :group 'zettelkasten
   :type '(string))
 
+(defun zettelkasten-zettel-template ()
+  "#+TITLE: 
+#+DATE: %U
+#+COLLECTION: %^{Type|index|content|proj}
+#+DESCRIPTOR:
+
+* 
+%i
+
+* Refile")
+
 (defcustom zettelkasten-descriptor-chain-sep ">"
   "Char that separates chained descriptors"
   :group 'zettelkasten
@@ -77,8 +88,30 @@
 (defcustom zettelkasten-descriptor-cycle-threshold 5
   "Number of remaining Zettel, that break the descriptor cycle"
   :group 'zettelkasten
-  :type 'number)
+  :type 'integer)
 
+(defcustom zettelkasten-context-filter-list '()
+  "List of context filter"
+  :group 'zettelkasten
+  :type 'list)
+
+(defun zettelkasten-context-work-fun (entry)
+  (not (member "Rezept" (plist-get entry :collections))))
+
+
+(setq zettelkasten-context-filter-list
+      '(("All" . (lambda (entry) t))
+        ("Work" . zettelkasten-context-work-fun)))
+
+(defvar zettelkasten-context-filter nil)
+
+;;;###autoload
+(defun zettelkasten-set-context-filter ()
+  (interactive)
+  (ivy-read "Filter" zettelkasten-context-filter-list
+            :action
+            (lambda (selection)
+              (setq zettelkasten-context-filter selection))))
 
 
 ;; Creation and (re)naming of zettel
@@ -101,7 +134,6 @@
         :immediate-finish t
         :jump-to-captured t)
       org-capture-templates)
-
 
 (defun zettelkasten--title-to-fname (title)
   (s-replace-all
@@ -130,17 +162,6 @@
   (setq zettel-capture-filename nil)
   (save-buffer))
 
-(defun zettelkasten-zettel-template ()
-  "#+TITLE: 
-#+DATE: %U
-#+COLLECTION: %^{Type|index|content|proj}
-#+DESCRIPTOR:
-
-* 
-%i
-
-* Refile")
-
 (defun zettelkasten--linked-in-zettel (zettel)
   (let ((link-list
          (plist-get (org-el-cache-get zettelkasten-cache zettel) :links)))
@@ -148,7 +169,6 @@
      zettelkasten-cache
      (lambda (filename entry)
        (member filename link-list)))))
-
 
 ;;;###autoload
 (defun zettelkasten-subtree-refile ()
@@ -183,60 +203,11 @@
   (newline)
   (org-paste-subtree))
 
-;; obsolete
-;;;###autoload
-(defun zettelkasten-rename-zettel-upd-links ()
-  (interactive)
-  (if (equal major-mode 'dired-mode)
-      (dired-find-file))
-  (kill-new (file-name-base))
-  (let ((old-name-base
-         (file-name-base))
-        (new-name-base
-         (read-string "New Name: ")))
-    (rename-file (concat old-name-base ".txt") (concat new-name-base ".txt"))
-    (kill-buffer)
-    (grep-compute-defaults)
-    (lgrep old-name-base "*.txt" zettelkasten-zettel-directory nil)
-    (other-window 1)
-    (if (y-or-n-p "Do you want to replace basenames? ")
-        (progn
-          (wgrep-change-to-wgrep-mode)
-          (search-forward "txt:" nil t)
-          (condition-case nil
-              (while (search-forward old-name-base nil t)
-                (replace-match new-name-base))
-            (error nil))
-          (wgrep-finish-edit))
-      (message "Changed filename without updating links."))
-    (find-file (concat zettelkasten-main-directory "/zettelkasten-log.csv"))
-    (goto-char (point-min))
-    (insert (format-time-string "%Y-%m-%d-%H%M") ", " old-name-base ".txt, " new-name-base ".txt\n")
-    (bury-buffer)
-    (save-some-buffers)))
-
 ;;; Open from Zettel
 (org-link-set-parameters "zk" :follow #'org-zettelkasten-open)
 
 (defun org-zettelkasten-open (path)
   (find-file (concat zettelkasten-zettel-directory path "*") t))
-
-;;;###autoload
-(defun zettelkasten-deadgrep-backlinks ()
-  (interactive)
-  (let ((zettel (file-name-base)))
-    (counsel-ag
-     (car (split-string zettel "\s")))))
-
-(defun zettelkasten-link-hint-loop ()
-  (interactive)
-  (goto-char (point-min))
-  (ignore-errors
-    (while t
-      (sleep-for 1)
-      (link-hint-open-link)
-      )))
-
 
 ;;; https://emacs.stackexchange.com/questions/21713/how-to-get-property-values-from-org-file-headers
 ;;; refactor!
@@ -288,13 +259,6 @@
     (org-set-tags '("refile")))
   (previous-buffer))
 
-
-;;;###autoload
-(defun zettelkasten-zettel-open-similarities ()
-  (interactive)
-  (find-file
-   (concat zettelkasten-similarities-directory "sim-" (buffer-name))))
-
 ;; Dirs and Queries
 ;;;###autoload
 (defun zettelkasten-open-dir ()
@@ -311,91 +275,12 @@
   (interactive)
   (counsel-ag (thing-at-point 'symbol) zettelkasten-zettel-directory nil))
 
-;; Handling of Tags
-(defvar zettelkasten-tags-values)
-
-;;;###autoload
-(defun zettelkasten-parse-tags-values ()
-  (interactive)
-  (setq zettelkasten-tags-values (zettelkasten-collect-tags-values)))
-
-(defun zettelkasten-collect-tags-values (&optional regexp)
-  "Collect values in keywords fields of all BibTeX entries.
-Maybe restrict the values to those matching REGEXP. Keywords may be phrases
-separated by commas. Multiple spaces or newlines within a keyword will be
-removed before collection."
-  (save-excursion
-    (goto-char (point-min))
-    (let (zk-tags kstring)
-      (while (re-search-forward "^tags:\\s-*\\(.*\\),$" nil t)
-        ;; TWS - remove newlines/multiple spaces:
-        (setq kstring (replace-regexp-in-string "[ \t\n]+" " "
-                                                (match-string-no-properties 1)))
-        (mapc
-         (lambda (v)
-           (if regexp (if (string-match regexp v)
-                          (add-to-list 'zk-tags v t))
-             (add-to-list 'zk-tags v t)))
-         (split-string kstring ",[ \n]*\\|{\\|}" t)))
-      zk-tags)))
-
-;;;###autoload
-(defun zettelkasten-parse-values-combined ()
-  (interactive)
-  (zettelkasten-combine-zettel)
-  (find-file (expand-file-name
-              (concat zettelkasten-main-directory "/zettel-combined.txt")))
-  (zettelkasten-parse-tags-values)
-  (kill-current-buffer))
-
-;;;###autoload
-(defun zettelkasten-insert-tags (&optional arg)
-  "Make a keywords field.
-If ARG is nil, ask for each keyword and offer completion over
-keywords that are already available in the buffer.  Inserting
-the empty string will quit the prompt. If the keyword is not already
-present in the buffer, it will be added to the local variable
-bu-keywords-values. Note that if you use ido-ubiquitous, the value of
-  `ido-ubiquitous-enable-old-style-default' is temporarily set to t within
-the body of this command."
-  (interactive "P")
-  (if (boundp 'zettelkasten-tags-values)
-      nil
-    (zettelkasten-parse-values-combined))
-  (save-excursion
-   (let ((elist (save-excursion))
-         append)
-     (goto-char (point-min))
-     (search-forward "#+DESCRIPTOR:" nil nil)
-     (end-of-line)
-     (insert " ")
-     (if (assoc "zk-tags" elist)
-         (progn (setq append t)))
-     (unless arg
-       (let ((cnt 0)
-             k)
-         (while (and (setq k (completing-read
-                              "Tags (RET to quit): " zettelkasten-tags-values nil))
-                     (not (equal k "")))
-           (when append (insert " ")
-                 (setq append nil))
-           (setq cnt (1+ cnt))
-           (insert (format "%s%s" (if (> cnt 1) " " "") k))
-           (zettelkasten-sort-tags)
-           (goto-char (point-min))
-           ;; goto tags
-           (search-forward "#+DESCRIPTOR: " nil nil)
-           ;; goto last 'formschlagwort'
-           (end-of-line)
-           (add-to-list 'zettelkasten-tags-values k)))))))
-
 ;;;###autoload
 (defun zettelkasten-sort-tags ()
   (interactive "*")
   (text-mode)
   (goto-char (point-min))
-  (if (search-forward "#+DESCRIPTOR:" nil t)
-      nil
+  (unless (search-forward "#+DESCRIPTOR:" nil t)
     (goto-char (point-max))
     (search-backward-regexp "^#\\+")
     (end-of-line)
@@ -433,16 +318,15 @@ the body of this command."
                         (completing-read
                          "Collection: "
                          (zettelkasten-cache-get-collection-values))))))
-  (if (not collection)
-      (zettelkasten-zettel-add-collection)))
+  (unless collection
+    (zettelkasten-zettel-add-collection)))
 
 ;;;###autoload
 (defun zettelkasten-zettel-add-descriptor (&optional descriptor)
   (interactive)
   (save-excursion
     (goto-char (point-min))
-    (if (search-forward "#+DESCRIPTOR:" nil t)
-        nil
+    (unless (search-forward "#+DESCRIPTOR:" nil t)
       (goto-char (point-max))
       (search-backward-regexp "^#\\+")
       (end-of-line)
@@ -454,9 +338,8 @@ the body of this command."
                          "Descriptor: "
                          (zettelkasten-cache-get-descriptor-values))))))
   (zettelkasten-sort-tags)
-  (if (not descriptor)
-      (zettelkasten-zettel-add-descriptor))
-  )
+  (unless descriptor
+    (zettelkasten-zettel-add-descriptor)))
 
 ;;;###autoload
 (defun zettelkasten-finish-zettel ()
@@ -483,13 +366,6 @@ the body of this command."
   (org-babel-tangle-file
    (concat zettelkasten-main-directory "/zettel-combined.txt")))
 
-;; Shell-interaction
-;;;###autoload
-(defun zettelkasten-combine-zettel ()
-  (interactive)
-  (shell-command-to-string
-   (concat "cat " zettelkasten-zettel-directory "*.txt > " zettelkasten-main-directory "/zettel-combined.txt")))
-
 ;;;###autoload
 (defun zettelkasten-gitstats ()
   (interactive)
@@ -497,32 +373,9 @@ the body of this command."
                                    "gitstats .git gitstats &&"
                                    "firefox 'gitstats/index.html'")))
 
-;; convenience functions
-;;;###autoload
-(defun zettelkasten-name-of-the-file ()
-  "Gets the name of the file the current buffer is based on."
-  (interactive)
-  (insert
-   (file-name-base (buffer-file-name (window-buffer (minibuffer-selected-window))))))
-
-;;;###autoload
-(defun zk-link-wrapper ()
-  (interactive)
-  (ivy-read "Links"
-            (zettelkasten-links-in-buffer)
-            :sort nil
-            :action 'zettelkasten-open-file-from-linklist))
-
-
-(defun zettelkasten-open-file-from-linklist (link)
-  (let ((zk-list
-         (split-string link ":")))
-    (find-file (concat (nth 1 zk-list) "*") t)))
-
 ;;;###autoload
 (defun zettelkasten-links-in-file (filename)
   "Return list of linked zettel-ids."
-  (interactive)
   (let ((matches))
     (with-temp-buffer
       (insert-file-contents filename)
@@ -596,7 +449,6 @@ the body of this command."
           (push descriptor descriptor-list)))
       descriptor-list)))
 
-
 (def-org-el-cache
   zettelkasten-cache
   (list zettelkasten-zettel-directory)
@@ -614,10 +466,10 @@ the body of this command."
 
 
 (defun zettelkasten--get-all-zettel ()
-  (org-el-cache-map
+  (org-el-cache-select
    zettelkasten-cache
    (lambda (filename entry)
-     entry)))
+     (funcall (cdr zettelkasten-context-filter) entry))))
 
 (defun zettelkasten--get-collection-zettel ()
   (let ((collection
@@ -705,7 +557,6 @@ the body of this command."
       (string= (plist-get entry key) value)
       entry))))
 
-
 (defun zettelkasten-open-zettel ()
   (interactive)
   (find-file
@@ -761,7 +612,6 @@ the body of this command."
      ))
   )
 
-
 (defun org-el-cache--find (paths &optional include-archives)
   "Generate shell code to search PATHS for org files.
 If INCLUDE-ARCHIVES is non-nil, org_archive files are included,
@@ -815,6 +665,129 @@ too."
   ("xs" zettelkasten-finish-zettel)     ;zet
   ("z" zettelkasten-new-zettel)
   )
+
+(defun zettelkasten-each-file ()
+  (interactive)
+  (let ((files
+         (directory-files "/home/job/Dropbox/db/zk/zettel/txt/" nil ".txt$")))
+    (dolist (zettel files)
+      (let ((fullfname
+             (concat "/home/job/Dropbox/db/zk/zettel/txt/" "/" zettel)))
+        (find-file fullfname)
+        (zettelkasten-repl-space)
+        (zettelkasten-repl-double)
+        (zettelkasten-repl-para)
+        (zettelkasten-repl-at)
+        (save-buffer)
+        (kill-current-buffer)))))
+
+
+
+(defun zettelkasten-repl-space ()
+  (interactive "*")
+  (goto-char (point-min))
+  (search-forward "#+DESCRIPTOR:" nil nil)
+  (end-of-line)
+  (setq my-end (point))
+  (beginning-of-line)
+  (setq my-beg (point))
+  (save-restriction
+    (narrow-to-region my-beg my-end)
+    (while (search-forward " " nil t)
+      (replace-match " #")))
+  )
+
+(defun zettelkasten-repl-at ()
+  (interactive "*")
+  (goto-char (point-min))
+  (search-forward "#+DESCRIPTOR:" nil nil)
+  (end-of-line)
+  (setq my-end (point))
+  (beginning-of-line)
+  (setq my-beg (point))
+  (save-restriction
+    (narrow-to-region my-beg my-end)
+    (while (search-forward "#@" nil t)
+      (replace-match "@")))
+  )
+
+
+(defun zettelkasten-repl-double ()
+  (interactive "*")
+  (goto-char (point-min))
+  (search-forward "#+DESCRIPTOR:" nil nil)
+  (end-of-line)
+  (setq my-end (point))
+  (beginning-of-line)
+  (setq my-beg (point))
+  (save-restriction
+    (narrow-to-region my-beg my-end)
+    (while (search-forward "##" nil t)
+      (replace-match "#")))
+  )
+
+(defun zettelkasten-repl-para ()
+  (interactive "*")
+  (goto-char (point-min))
+  (search-forward "#+DESCRIPTOR:" nil nil)
+  (end-of-line)
+  (setq my-end (point))
+  (beginning-of-line)
+  (setq my-beg (point))
+  (save-restriction
+    (narrow-to-region my-beg my-end)
+    (while (search-forward "#§" nil t)
+      (replace-match "@")))
+  )
+
+
+
+
+(defun zettelkasten-replace-tags ()
+  (interactive)
+  (goto-char (point-min))
+  (while (re-search-forward "[\n]*\\* Schlagwörter\ntags:" nil t)
+    (replace-match "\n#+DESCRIPTOR:")))
+
+
+
+(defun zettelkasten-tmp (path tag)
+  (let ((files
+         (directory-files path nil ".txt$"))
+        (collection
+         (s-chop-prefix "§" tag)))
+    (dolist (file files)
+      (let ((fullfname
+             (concat path "/" file)))
+        (find-file fullfname)
+        (if (search-forward tag nil t)
+            (zettelkasten-zettel-add-collection collection))
+        (while (search-forward (concat " " tag ",") nil t)
+          (replace-match ""))
+        (save-buffer)
+        (kill-current-buffer)))))
+
+
+(defun zettelkasten-replace-tmp (path tag repl)
+  (let ((files
+         (directory-files path nil ".txt$"))
+        ;; (collection
+        ;;  (s-chop-prefix "§" tag))
+        )
+    (dolist (file files)
+      (let ((fullfname
+             (concat path "/" file)))
+        (find-file fullfname)
+        ;; (if (search-forward tag nil t)
+        ;;     (zettelkasten-zettel-add-collection collection))
+        (while (search-forward tag nil t)
+          (replace-match repl))
+        (save-buffer)
+        (kill-current-buffer)))))
+
+
+
+
 
 (provide 'zettelkasten)
 ;;; zettelkasten.el ends here
