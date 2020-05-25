@@ -29,7 +29,6 @@
 ;; Zettelkasten
 ;;
 ;;; Code:
-(require 'deadgrep)
 (require 'hydra)
 (require 's)
 (require 'org-el-cache)
