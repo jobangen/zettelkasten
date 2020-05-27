@@ -449,6 +449,18 @@
           (push descriptor descriptor-list)))
       descriptor-list)))
 
+(defun zettelkasten-extract-id (filename)
+  (let ((fname-chop
+         (s-chop-prefix
+          zettelkasten-zettel-directory
+          (s-chop-suffix ".org" filename))))
+    (cond ((s-prefix? "txt" fname-chop)
+           (s-chop-prefix "txt/" fname-chop))
+          ((s-prefix? "jr" fname-chop)
+           (s-chop-prefix "jr/" fname-chop))
+          (t (s-left 15 fname-chop)))))
+
+
 (def-org-el-cache
   zettelkasten-cache
   (list zettelkasten-zettel-directory)
@@ -456,7 +468,7 @@
     (list
      :file filename
      :title (zettelkasten-extract-title filename data)
-     :id (s-left 15 (file-name-base filename))
+     :id (zettelkasten-extract-id filename)
      :collections (zettelkasten-extract-collections filename data)
      :descriptors (zettelkasten-extract-descriptors filename data)
      :links (zettelkasten-links-in-file filename))))
