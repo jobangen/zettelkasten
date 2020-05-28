@@ -96,14 +96,15 @@
   :type 'list)
 
 (defun zettelkasten-context-work-fun (entry)
-  (not (member "Rezept" (plist-get entry :collections))))
+  (and (not (member "journal" (plist-get entry :collections)))
+       (not (member "Rezept" (plist-get entry :collections)))))
 
 
 (setq zettelkasten-context-filter-list
       '(("All" . (lambda (entry) t))
         ("Work" . zettelkasten-context-work-fun)))
 
-(defvar zettelkasten-context-filter nil)
+(defvar zettelkasten-context-filter '("All" . (lambda (entry) t)))
 
 ;;;###autoload
 (defun zettelkasten-set-context-filter ()
