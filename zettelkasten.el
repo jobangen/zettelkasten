@@ -130,7 +130,7 @@
                    (concat zettelkasten-zettel-directory
                            (format-time-string "%Y-%m-%d-%H%M-")
                            name
-                           ".txt")))))
+                           ".org")))))
         (function zettelkasten-zettel-template)
         :immediate-finish t
         :jump-to-captured t)
@@ -365,7 +365,7 @@
 (defun zettelkasten-tangle-combined ()
   (interactive)
   (org-babel-tangle-file
-   (concat zettelkasten-main-directory "/zettel-combined.txt")))
+   (concat zettelkasten-main-directory "/zettel-combined.org")))
 
 ;;;###autoload
 (defun zettelkasten-gitstats ()
@@ -647,7 +647,7 @@ too."
        "find %s -name \"[a-Z0-9_]*.org\" -o -name \"[a-Z0-9_]*.org_archive\" "
        (mapconcat 'identity paths " "))
     (format
-     "find %s -name \"[a-Z0-9_]*.txt\" -o -name \"[a-Z0-9_]*.org\""
+     "find %s -name \"[a-Z0-9_]*.org\" -o -name \"[a-Z0-9_]*.org\""
      (mapconcat 'identity paths " "))))
 
 ;;;###autoload
