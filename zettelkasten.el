@@ -214,7 +214,12 @@
 (org-link-set-parameters "zk" :follow #'org-zettelkasten-open)
 
 (defun org-zettelkasten-open (path)
-  (find-file (concat zettelkasten-zettel-directory path "*") t))
+  (let ((zettel-entry
+         (car (org-el-cache-select
+               zettelkasten-cache
+               (lambda (filename entry)
+                 (string= path (plist-get entry :id)))))))
+    (find-file (plist-get zettel-entry :file))))
 
 ;;; https://emacs.stackexchange.com/questions/21713/how-to-get-property-values-from-org-file-headers
 ;;; refactor!
