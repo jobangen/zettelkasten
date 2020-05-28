@@ -472,7 +472,6 @@
            (s-chop-prefix "jr/" fname-chop))
           (t (s-left 15 fname-chop)))))
 
-
 (def-org-el-cache
   zettelkasten-cache
   (list zettelkasten-zettel-directory)
