@@ -255,7 +255,6 @@
     (goto-char (point-max))
     (org-insert-heading)
     (zettelkasten-insert-link-at-point link-target)
-    (org-do-demote)
     (org-todo "TODO")
     (org-set-tags '("refile")))
   (previous-buffer))
