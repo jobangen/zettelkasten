@@ -172,30 +172,20 @@
        (member filename link-list)))))
 
 ;;;###autoload
-(defun zettelkasten-subtree-refile ()
-  "Refile subtree to Zettel"
+(defun zettelkasten-refile ()
   (interactive)
-  (org-back-to-heading)
-  (org-todo "TODO")
-  (org-set-tags '("refile"))
-  (org-cut-subtree)
-  (if (equal (buffer-name) "zettelkasten-inbox.org")
-      (find-file (cdr (zettelkasten--select-zettel (zettelkasten--get-all-zettel))))
-    (ivy-read "Links: "
-              (zettelkasten--get-cons-title-fname
-               (zettelkasten--linked-in-zettel (buffer-file-name)))
-              :action
-              (lambda (selection)
-                (find-file (cdr selection)))))
-  (goto-char (point-max))
-  (org-paste-subtree 3)
-  (save-buffer)
-  (previous-buffer))
+  (let ((zettel-linked (zettelkasten--linked-in-zettel (buffer-file-name)))
+        (zettel-all (zettelkasten--get-all-zettel)))
+    (cond ((equal (buffer-name) "zettelkasten-inbox.org")
+           (zettelkasten-refile-to-zettel zettel-all))
+          ((not zettel-linked)
+           (zettelkasten-refile-to-headline))
+          ((yes-or-no-p "Refile to headline?")
+           (zettelkasten-refile-to-headline))
+          (t (zettelkasten-refile-to-zettel zettel-linked)))))
 
-;;;###autoload
-(defun zettelkasten-subtree-refile-current-file ()
-  (interactive)
-  (counsel-outline)
+(defun zettelkasten-refile-to-headline ()
+  (org-back-to-heading)
   (org-todo "")
   (org-set-tags '())
   (org-cut-subtree)
@@ -203,6 +193,22 @@
   (end-of-line)
   (newline)
   (org-paste-subtree))
+
+(defun zettelkasten-refile-to-zettel (zettel-lst)
+  (org-back-to-heading)
+  (org-todo "TODO")
+  (org-set-tags '("refile"))
+  (org-cut-subtree)
+  (ivy-read "Links: "
+            (zettelkasten--get-cons-title-fname zettel-lst)
+            :action
+            (lambda (selection)
+              (find-file (cdr selection))))
+  (goto-char (point-max))
+  (org-paste-subtree 2)
+  (zettelkasten-refile)
+  (save-buffer))
+
 
 ;;; Open from Zettel
 (org-link-set-parameters "zk" :follow #'org-zettelkasten-open)
