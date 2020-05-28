@@ -267,7 +267,8 @@
     (org-insert-heading)
     (zettelkasten-insert-link-at-point link-target)
     (org-todo "TODO")
-    (org-set-tags '("refile")))
+    (org-set-tags '("refile"))
+    (org-cycle-level))
   (previous-buffer))
 
 ;; Dirs and Queries
