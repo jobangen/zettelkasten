@@ -472,6 +472,11 @@
           (push descriptor descriptor-list)))
       descriptor-list)))
 
+(defun zettelkasten-extract-link-ids (filename el)
+  (org-element-map el 'link
+    (lambda (link)
+      (when (string= (org-element-property :type link) "zk")
+        (org-element-property :path link)))))
 
 (def-org-el-cache
   zettelkasten-cache
@@ -483,7 +488,7 @@
      :id (zettelkasten-extract-id filename)
      :collections (zettelkasten-extract-collections filename data)
      :descriptors (zettelkasten-extract-descriptors filename data)
-     :links (zettelkasten-links-in-file filename))))
+     :links (zettelkasten-extract-link-ids filename data))))
 
 ;; Update / Initialize the cache
 (add-hook 'after-save-hook (lambda () (org-el-cache-update zettelkasten-cache)))
