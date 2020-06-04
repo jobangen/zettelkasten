@@ -415,6 +415,17 @@
 (defun zettelkasten-extract-title (filename data)
   (zettelkasten-extract-value data 'keyword "TITLE"))
 
+(defun zettelkasten-extract-id (filename)
+  (let ((fname-chop
+         (s-chop-prefix
+          zettelkasten-zettel-directory
+          (s-chop-suffix ".org" filename))))
+    (cond ((s-prefix? "txt" fname-chop)
+           (s-chop-prefix "txt/" fname-chop))
+          ((s-prefix? "jr" fname-chop)
+           (s-chop-prefix "jr/" fname-chop))
+          (t (s-left 15 fname-chop)))))
+
 (defun zettelkasten-extract-collections (filename data)
   (ignore-errors
     (let* ((collection-string
@@ -461,16 +472,6 @@
           (push descriptor descriptor-list)))
       descriptor-list)))
 
-(defun zettelkasten-extract-id (filename)
-  (let ((fname-chop
-         (s-chop-prefix
-          zettelkasten-zettel-directory
-          (s-chop-suffix ".org" filename))))
-    (cond ((s-prefix? "txt" fname-chop)
-           (s-chop-prefix "txt/" fname-chop))
-          ((s-prefix? "jr" fname-chop)
-           (s-chop-prefix "jr/" fname-chop))
-          (t (s-left 15 fname-chop)))))
 
 (def-org-el-cache
   zettelkasten-cache
