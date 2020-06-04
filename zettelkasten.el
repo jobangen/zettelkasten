@@ -594,6 +594,16 @@
      (find-file
       (cdr selection)))))
 
+;;;###autoload
+(defun zettelkasten-open-zettel-random ()
+  (interactive)
+  (let* ((zettel
+          (zettelkasten--get-cons-title-fname
+           (zettelkasten--get-all-zettel)))
+         (rand-element
+          (random (safe-length zettel))))
+    (find-file (cdr (nth rand-element zettel)))))
+
 (defun zettelkasten-open-zettel-collection ()
   (interactive)
   (ivy-read
