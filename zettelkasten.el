@@ -609,6 +609,7 @@
           (random (safe-length zettel))))
     (find-file (cdr (nth rand-element zettel)))))
 
+;;;###autoload
 (defun zettelkasten-open-zettel-collection ()
   (interactive)
   (ivy-read
@@ -621,11 +622,13 @@
      (find-file
       (cdr selection)))))
 
+
+;;;###autoload
 (defun zettelkasten-open-zettel-descriptor ()
   (interactive)
   (ivy-read
    "Zettel: " (zettelkasten--get-cons-title-fname
-                (zettelkasten--get-descriptor-zettel))
+               (zettelkasten--get-descriptor-zettel))
    :preselect "Inbox"
    :action
    (lambda (selection)
@@ -640,29 +643,33 @@
           plist))
 
 
-(defun zettelkasten-backlinks-to-file (file)
+(defun zettelkasten--get-backlinks (file)
   "Files linking to FILE."
-  (let ((links)
-        (file (expand-file-name file)))
-    (org-el-cache-each
+  (let* ((file-entry
+          (car (org-el-cache-select
+                zettelkasten-cache
+                (lambda (filename entry)
+                  (string= filename (buffer-file-name))))))
+         (file-id
+          (plist-get file-entry :id)))
+    (org-el-cache-select
      zettelkasten-cache
-     (lambda (filename data)
-       (dolist (link (plist-get data :links))
-         (if (string= file link)
-             (push (cons (plist-get data :title) filename) links)))))
-    links))
+     (lambda (filename entry)
+       (member file-id (plist-get entry :links))))))
 
+  
 ;;;###autoload
-(defun zettelkasten-open-backlink ()
-  (interactive)
-  (ivy-read
-   "Zettel: "
-   (zettelkasten-backlinks-to-file (buffer-file-name))
-   :action
-   (lambda (selection)
-     (find-file (cdr selection))
-     ))
-  )
+  (defun zettelkasten-open-backlink ()
+    (interactive)
+    (ivy-read
+     "Zettel: "
+     (zettelkasten--get-cons-title-fname
+      (zettelkasten--get-backlinks (buffer-file-name)))
+     :action
+     (lambda (selection)
+       (find-file (cdr selection))
+       ))
+    )
 
 (defun org-el-cache--find (paths &optional include-archives)
   "Generate shell code to search PATHS for org files.
