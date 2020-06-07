@@ -727,126 +727,17 @@ too."
 
 (defun zettelkasten-each-file ()
   (interactive)
-  (let ((files
-         (directory-files "/home/job/Dropbox/db/zk/zettel/txt/" nil ".txt$")))
+  (let* ((path "/home/job/Dropbox/db/journal/")
+         (files
+         (directory-files path nil ".org$")))
     (dolist (zettel files)
       (let ((fullfname
-             (concat "/home/job/Dropbox/db/zk/zettel/txt/" "/" zettel)))
+             (concat path "/" zettel)))
         (find-file fullfname)
-        (zettelkasten-repl-space)
-        (zettelkasten-repl-double)
-        (zettelkasten-repl-para)
-        (zettelkasten-repl-at)
+        (journal-repl-beg)
+        (zettelkasten-zettel-add-collection "journal")
         (save-buffer)
         (kill-current-buffer)))))
-
-
-
-(defun zettelkasten-repl-space ()
-  (interactive "*")
-  (goto-char (point-min))
-  (search-forward "#+DESCRIPTOR:" nil nil)
-  (end-of-line)
-  (setq my-end (point))
-  (beginning-of-line)
-  (setq my-beg (point))
-  (save-restriction
-    (narrow-to-region my-beg my-end)
-    (while (search-forward " " nil t)
-      (replace-match " #")))
-  )
-
-(defun zettelkasten-repl-at ()
-  (interactive "*")
-  (goto-char (point-min))
-  (search-forward "#+DESCRIPTOR:" nil nil)
-  (end-of-line)
-  (setq my-end (point))
-  (beginning-of-line)
-  (setq my-beg (point))
-  (save-restriction
-    (narrow-to-region my-beg my-end)
-    (while (search-forward "#@" nil t)
-      (replace-match "@")))
-  )
-
-
-(defun zettelkasten-repl-double ()
-  (interactive "*")
-  (goto-char (point-min))
-  (search-forward "#+DESCRIPTOR:" nil nil)
-  (end-of-line)
-  (setq my-end (point))
-  (beginning-of-line)
-  (setq my-beg (point))
-  (save-restriction
-    (narrow-to-region my-beg my-end)
-    (while (search-forward "##" nil t)
-      (replace-match "#")))
-  )
-
-(defun zettelkasten-repl-para ()
-  (interactive "*")
-  (goto-char (point-min))
-  (search-forward "#+DESCRIPTOR:" nil nil)
-  (end-of-line)
-  (setq my-end (point))
-  (beginning-of-line)
-  (setq my-beg (point))
-  (save-restriction
-    (narrow-to-region my-beg my-end)
-    (while (search-forward "#§" nil t)
-      (replace-match "@")))
-  )
-
-
-
-
-(defun zettelkasten-replace-tags ()
-  (interactive)
-  (goto-char (point-min))
-  (while (re-search-forward "[\n]*\\* Schlagwörter\ntags:" nil t)
-    (replace-match "\n#+DESCRIPTOR:")))
-
-
-
-(defun zettelkasten-tmp (path tag)
-  (let ((files
-         (directory-files path nil ".txt$"))
-        (collection
-         (s-chop-prefix "§" tag)))
-    (dolist (file files)
-      (let ((fullfname
-             (concat path "/" file)))
-        (find-file fullfname)
-        (if (search-forward tag nil t)
-            (zettelkasten-zettel-add-collection collection))
-        (while (search-forward (concat " " tag ",") nil t)
-          (replace-match ""))
-        (save-buffer)
-        (kill-current-buffer)))))
-
-
-(defun zettelkasten-replace-tmp (path tag repl)
-  (let ((files
-         (directory-files path nil ".txt$"))
-        ;; (collection
-        ;;  (s-chop-prefix "§" tag))
-        )
-    (dolist (file files)
-      (let ((fullfname
-             (concat path "/" file)))
-        (find-file fullfname)
-        ;; (if (search-forward tag nil t)
-        ;;     (zettelkasten-zettel-add-collection collection))
-        (while (search-forward tag nil t)
-          (replace-match repl))
-        (save-buffer)
-        (kill-current-buffer)))))
-
-
-
-
 
 (provide 'zettelkasten)
 ;;; zettelkasten.el ends here
