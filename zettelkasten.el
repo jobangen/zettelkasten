@@ -150,11 +150,11 @@
    (s-downcase title)))
   
 ;;;###autoload
-(defun zettelkasten-new-zettel ()
+(defun zettelkasten-new-zettel (&optional title)
   "Capture a Zettel with org-capture"
   (interactive)
   (let ((zettel-title
-         (read-string "Title: ")))
+         (or title (read-string "Title: "))))
     (setq zettel-capture-filename
           (zettelkasten--title-to-fname zettel-title))
     (org-capture nil "Z")
@@ -507,8 +507,9 @@
    :preselect "Inbox"
    :action
    (lambda (selection)
-     (find-file
-      (cdr selection)))))
+     (if (listp selection)
+         (find-file (cdr selection))
+       (zettelkasten-new-zettel selection)))))
 
 ;;;###autoload
 (defun zettelkasten-open-zettel-random ()
