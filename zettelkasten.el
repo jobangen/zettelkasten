@@ -96,7 +96,8 @@
 
 (defun zettelkasten-context-work-fun (entry)
   (and (not (member "journal" (plist-get entry :collections)))
-       (not (member "Rezept" (plist-get entry :collections)))))
+       (not (member "@Rezept" (plist-get entry :descriptors)))
+       (not (member "priv" (plist-get entry :collections)))))
 
 
 (setq zettelkasten-context-filter-list
