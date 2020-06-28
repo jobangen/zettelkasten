@@ -604,42 +604,6 @@
   (interactive)
   (org-el-cache-force-update zettelkasten-cache))
 
-;;;###autoload
-(defhydra hydra-zettelkasten (:hint t
-                                    :color pink)
-  "
- ^Zettelkasten^ ^ ^              ^Zettel^              ^Var^
--^---^---------------------------^-^-------------------^-^-------------------
- _d_: zk         _z_: new zettel  _s_: sort tags        _r_: remem
- _b_: bibtex     _q_: query       _t_: add tags         _b_: Open Bibkey
- _k_: kill bfs  _xq_: txt query  _xs_: finish           _f_: Open Files
- _r_: recentf   ^ ^               _o_: org-noter        _i_: Open Similarities
- ^ ^            ^ ^               _l_: store link       _j_: join line
-"
-  ;;General
-  ("C-s" counsel-grep-or-swiper)
-  ("C-m" job/open-at-point)
-  ("<tab>" org-next-link "next link")
-  ("C-<tab>" org-previous-link "prev link")
-  ("b" zettelkasten-zettel-open-bibkey)
-  ("d" zettelkasten-open-dir)
-  ("f" zettelkasten-zettel-open-files)
-  ("g" nil "Quit")
-  ("j" join-line)
-  ("i" zettelkasten-zettel-open-similarities)
-  ("k" projectile-kill-buffers) ;;proj
-  ("l" zettelkasten-zettel-store-link)
-  ("o" org-noter)
-  ("q" zettelkasten-ag-query)                 ;;proj
-  ("Q" zettelkasten-ag-query-symbol-at-point) ;;(proj)
-  ("r" remem-toggle)                          ;var
-  ("s" zettelkasten-sort-tags)                ;zet
-  ("r" projectile-recentf)
-  ("t" zettelkasten-add-tags)           ;zet
-  ("xq" zettelkasten-txt-query)         ;;var
-  ("xs" zettelkasten-finish-zettel)     ;zet
-  ("z" zettelkasten-new-zettel)
-  )
 (defhydra hydra-zettelkasten (:columns 4 :color blue)
   "Zettelkasten"
   ("C-ä" zettelkasten-open-zettel "Open Zettel" :column "Open")
