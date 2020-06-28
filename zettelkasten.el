@@ -640,6 +640,32 @@
   ("xs" zettelkasten-finish-zettel)     ;zet
   ("z" zettelkasten-new-zettel)
   )
+(defhydra hydra-zettelkasten (:columns 4 :color blue)
+  "Zettelkasten"
+  ("C-ä" zettelkasten-open-zettel "Open Zettel" :column "Open")
+  ("R" zettelkasten-open-zettel-random "Open random")
+  ("ä" zettelkasten-open-zettel-collection "Open collection")
+  ("d" zettelkasten-open-zettel-descriptor "Open descriptor")
+  ("b" zettelkasten-open-backlink "Backlinks")
+
+  ("z" zettelkasten-new-zettel "New Zettel" :column "Zettelkasten")
+  ("L" zettelkasten-new-zettel-insert-link-at-point "Link new Zettel")
+  ("p" zettelkasten-push-link-to-current "Push Link")
+  ("f" zettelkasten-set-context-filter "Set filter")
+
+  ("c" zettelkasten-zettel-add-collection "Add Collection" :column "Edit")
+  ("#" zettelkasten-zettel-add-descriptor "Add descriptor")
+  ("'" zettelkasten-headline-add-descriptor "Add descriptor headline")
+  ("l" zettelkasten-insert-link-at-point "Insert Link")
+  ("r" zettelkasten-refile "Refile")
+
+  ("sl" zetteldeft-avy-link-search "search link" :column "Search")
+  ("sf" zetteldeft-search-current-id "seach current file")
+  ("sd" zetteldeft-deft-new-search "search deft ")
+  ("st" zetteldeft-avy-tag-search "search tag")
+  ("n" org-noter "noter" :column "Other")
+  ("C" zettelkasten-force-update-cache "Reset Cache")
+  ("q" nil "Quit"))
 
 (defun zettelkasten-each-file ()
   (interactive)
