@@ -599,10 +599,6 @@
        ))
     )
 
-;;;###autoload
-(defun zettelkasten-force-update-cache ()
-  (interactive)
-  (org-el-cache-force-update zettelkasten-cache))
 
 (defhydra hydra-zettelkasten (:columns 4 :color blue)
   "Zettelkasten"
