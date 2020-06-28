@@ -551,6 +551,14 @@
       (cdr selection)))))
 
 
+(defun zettelkasten--get-cons-title-fname (plist)
+  (mapcar (lambda (arg)
+            (cons
+             (plist-get arg :title)
+             (plist-get arg :file)))
+          plist))
+
+
 ;;;###autoload
 (defun zettelkasten-open-zettel-descriptor ()
   (interactive)
@@ -562,14 +570,6 @@
    (lambda (selection)
      (find-file
       (cdr selection)))))
-
-(defun zettelkasten--get-cons-title-fname (plist)
-  (mapcar (lambda (arg)
-            (cons
-             (plist-get arg :title)
-             (plist-get arg :file)))
-          plist))
-
 
 (defun zettelkasten--get-backlinks (file)
   "Files linking to FILE."
