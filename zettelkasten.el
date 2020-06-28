@@ -72,7 +72,7 @@
   "#+TITLE: 
 #+DATE: %U
 #+COLLECTION: %^{Type|index|content|proj}
-#+DESCRIPTOR:
+#+DESCRIPTOR: @%\\1
 
 * 
 %i
