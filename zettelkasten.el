@@ -354,6 +354,22 @@
     (zettelkasten-zettel-add-descriptor)))
 
 ;;;###autoload
+(defun zettelkasten-headline-add-descriptor ()
+  "Add descriptor to current headline."
+  (interactive)
+  (let* ((current
+          (split-string
+           (or (org-entry-get nil "DESCRIPTOR") "")))
+         (add
+          (ivy-read "Descriptor: " (zettelkasten-cache-values-descriptor)))
+         (join
+          (sort (append current (list add)) 'string<))
+         (string
+          (mapconcat 'identity join " ")))
+    (org-set-property "DESCRIPTOR" string))
+  (zettelkasten-headline-add-descriptor))
+
+;;;###autoload
 (defun zettelkasten-finish-zettel ()
   "Zettelkasten: delete whitespace, save, kill buffer."
   (interactive)
