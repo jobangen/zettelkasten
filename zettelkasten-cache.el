@@ -109,14 +109,19 @@
   (interactive)
   (org-el-cache-force-update zettelkasten-cache))
 
-(defun zettelkasten-cache-entry-id (id)
-  (car (org-el-cache-select
-        zettelkasten-cache
-        (lambda (filename entry)
-          (string= (plist-get entry :id) id)))))
 (defun zettelkasten-cache-entry-filename (&optional filename)
   (org-el-cache-get zettelkasten-cache (or filename (buffer-file-name))))
 
+(defun zettelkasten-cache-entry-ids (ids)
+  (if (string= (type-of ids) "string")
+      (car (org-el-cache-select
+            zettelkasten-cache
+            (lambda (filename entry)
+              (string= (plist-get entry :id) ids))))
+    (org-el-cache-select
+     zettelkasten-cache
+     (lambda (filename entry)
+       (member)))))
 
 (defun zettelkasten-cache-entries-where-member (match key)
   (org-el-cache-select
