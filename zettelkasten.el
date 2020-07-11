@@ -613,11 +613,12 @@
   ("p" zettelkasten-push-link-to-current "Push Link")
   ("f" zettelkasten-set-context-filter "Set filter")
 
-  ("c" zettelkasten-zettel-add-collection "Add Collection" :column "Edit")
+  ("c" zettelkasten-zettel-add-collection "Add Collection" :column "Zettel")
   ("#" zettelkasten-zettel-add-descriptor "Add descriptor")
   ("'" zettelkasten-headline-add-descriptor "Add descriptor headline")
   ("l" zettelkasten-insert-link-at-point "Insert Link")
   ("r" zettelkasten-refile "Refile")
+  ("y" zettelkasten-zettel-similarities "Similarities")
 
   ("sl" zetteldeft-avy-link-search "search link" :column "Search")
   ("sf" zetteldeft-search-current-id "seach current file")
