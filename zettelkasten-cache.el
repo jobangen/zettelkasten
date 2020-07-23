@@ -36,8 +36,16 @@
             (zettelkasten-extract-value element "COLLECTION"))
            (collection-split
             (split-string collection-string))
+           (collection-headings
+            (-flatten
+             (org-element-map element 'node-property
+               (lambda (property)
+                 (when (string= (org-element-property :key property) "COLLECTION")
+                   (split-string (org-element-property :value property)))))))
+           (collection-conc
+            (append collection-split collection-headings))
            (collection-list nil))
-      (dolist (descriptor collection-split)
+      (dolist (descriptor collection-conc)
         (if (s-contains? zettelkasten-descriptor-chain-sep descriptor)
             (progn
               (let* ((chain-split
