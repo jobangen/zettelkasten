@@ -43,30 +43,59 @@
     (seq-take (sort similarities (lambda (x y) (> (cdr x) (cdr y)))) 25)))
 
 ;;;###autoload
-(defun zettelkasten-zettel-similarities ()
+(defun zettelkasten-zettel-info ()
   (interactive)
-  (let* ((zettel-title
+  (let* ((zettel-id (plist-get (zettelkasten-cache-entry-filename) :id))
+         (zettel-backlinks
+          (org-el-cache-select
+           zettelkasten-cache
+           (lambda (filename entry)
+             (member zettel-id (plist-get entry :links)))))
+         (zettel-title
           (plist-get (zettelkasten-cache-entry-filename) :title))
          (zettel-sim
           (zettelkasten--calc-similarities (buffer-file-name))))
-    (switch-to-buffer-other-window "*zettelkasten-similarities*")
+    (switch-to-buffer-other-window "*zettelkasten-info*")
     (erase-buffer)
     (org-mode)
-    (insert (format "#+TITLE: Similarities: %s\n\n" zettel-title))
+    (insert (format "#+TITLE: %s\n\n" zettel-title))
+    (when zettel-backlinks
+      (dolist (entry zettel-backlinks)
+        (insert (format "- [[file:%s][%s]]\n"
+                        (plist-get entry :file)
+                        (plist-get entry :title))))
+      (insert "\n"))
     (insert "| JI | Title |\n|--|--|\n")
     (dolist (sim zettel-sim)
       (insert (format "| %s | [[file:%s][%s]] |\n"
                       (cdr sim)
                       (car sim)
                       (s-truncate
-                       75
+                       76
                        (plist-get
                         (zettelkasten-cache-entry-filename (car sim)) :title)))))
     (insert "|--|--|")
-    (goto-char (point-min))
-    (next-logical-line 2)
+    (previous-logical-line)
     (org-table-align)
     (other-window 1)))
+
+;;;###autoload
+(defun zettelkasten-replace-descriptor ()
+  (interactive)
+  (let* ((desc-old
+          (completing-read
+           "Descriptor: "
+           (zettelkasten-cache-values-descriptor)))
+         (desc-new (read-string "Descriptor: " desc-old))
+         (zettel (zettelkasten-cache-entries-where-member desc-old :descriptors)))
+    (dolist (entry zettel)
+      (find-file (plist-get entry :file))
+      (while (search-forward desc-old nil t)
+        (replace-match desc-new))
+      (zettelkasten-sort-tags)
+      (save-buffer)
+      (kill-buffer))))
+
 
 (provide 'zettelkasten-descriptor)
 ;;; zettelkasten-descriptor.el ends here
