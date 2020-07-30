@@ -33,40 +33,26 @@
 (require 's)
 (require 'zettelkasten-cache)
 
+(defgroup zettelkasten nil
+  "Quick manipulation of textual checkboxes."
+  :group 'convenience)
+
 (defcustom zettelkasten-main-directory
   (expand-file-name (convert-standard-filename "zettelkasten/") user-emacs-directory)
   "Path for main directory"
   :group 'zettelkasten
-  :type '(string))
+  :type 'string)
 
 (defcustom zettelkasten-zettel-directory
   (expand-file-name (convert-standard-filename "zettel/") zettelkasten-main-directory)
   "Path for Zettel"
   :group 'zettelkasten
-  :type '(string))
-
-(defcustom zettelkasten-temp-directory
-  (expand-file-name (convert-standard-filename "temp/") zettelkasten-main-directory)
-  "Path for Zettel"
-  :group 'zettelkasten
-  :type '(string))
-
-(defcustom zettelkasten-tags-directory
-  (expand-file-name (convert-standard-filename "tags/") zettelkasten-temp-directory)
-  "Path for temporary files with tags"
-  :group 'zettelkasten
-  :type '(string))
-
-(defcustom zettelkasten-similarities-directory
-  (expand-file-name (convert-standard-filename "similarities/") zettelkasten-temp-directory)
-  "Path for files with lists of similarities"
-  :group 'zettelkasten
-  :type '(string))
+  :type 'string)
 
 (defcustom zettelkasten-bibliography-file "~/biblio.bib"
   "Path to bibfile"
   :group 'zettelkasten
-  :type '(string))
+  :type 'string)
 
 (defun zettelkasten-zettel-template ()
   "#+TITLE: 
@@ -163,18 +149,12 @@
   (setq zettel-capture-filename nil)
   (save-buffer))
 
-(defun zettelkasten--linked-in-zettel (zettel)
-  (let ((link-list
-         (plist-get (org-el-cache-get zettelkasten-cache zettel) :links)))
-    (org-el-cache-select
-     zettelkasten-cache
-     (lambda (filename entry)
-       (member filename link-list)))))
-
 ;;;###autoload
 (defun zettelkasten-refile ()
   (interactive)
-  (let ((zettel-linked (zettelkasten--linked-in-zettel (buffer-file-name)))
+  (let ((zettel-linked
+         (zettelkasten-cache-entry-ids
+          (plist-get (zettelkasten-cache-entry-filename) :links)))
         (zettel-all (zettelkasten--get-all-zettel)))
     (cond ((equal (buffer-name) "zettelkasten-inbox.org")
            (zettelkasten-refile-to-zettel zettel-all))
@@ -206,8 +186,9 @@
               (find-file (cdr selection))))
   (goto-char (point-max))
   (org-paste-subtree 2)
-  (zettelkasten-refile)
-  (save-buffer))
+  (save-buffer)
+  (when (y-or-n-p "Refile?")
+    (zettelkasten-refile)))
 
 
 ;;; Open from Zettel
@@ -215,10 +196,7 @@
 
 (defun org-zettelkasten-open (path)
   (let ((zettel-entry
-         (car (org-el-cache-select
-               zettelkasten-cache
-               (lambda (filename entry)
-                 (string= path (plist-get entry :id)))))))
+         (car (zettelkasten-cache-entry-ids (list path)))))
     (find-file (plist-get zettel-entry :file))))
 
 ;;; https://emacs.stackexchange.com/questions/21713/how-to-get-property-values-from-org-file-headers
@@ -236,7 +214,7 @@
           (or link-target
               (cdr (zettelkasten--select-zettel (zettelkasten--get-all-zettel)))))
          (zettel-data
-          (zettelkasten-cache-query-filename zettel))
+          (zettelkasten-cache-entry-filename zettel))
          (zettel-id
           (plist-get zettel-data :id))
          (zettel-title
@@ -329,7 +307,7 @@
                     (or collection
                         (completing-read
                          "Collection: "
-                         (zettelkasten-cache-get-collection-values))))))
+                         (zettelkasten-cache-values-collection))))))
   (unless collection
     (zettelkasten-zettel-add-collection)))
 
@@ -348,7 +326,7 @@
                     (or descriptor
                         (completing-read
                          "Descriptor: "
-                         (zettelkasten-cache-get-descriptor-values))))))
+                         (zettelkasten-cache-values-descriptor))))))
   (zettelkasten-sort-tags)
   (unless descriptor
     (zettelkasten-zettel-add-descriptor)))
@@ -361,13 +339,32 @@
           (split-string
            (or (org-entry-get nil "DESCRIPTOR") "")))
          (add
-          (ivy-read "Descriptor: " (zettelkasten-cache-values-descriptor)))
+          (ivy-read "Descriptor [Headline]: "
+                    (zettelkasten-cache-values-descriptor)))
          (join
           (sort (append current (list add)) 'string<))
          (string
           (mapconcat 'identity join " ")))
     (org-set-property "DESCRIPTOR" string))
   (zettelkasten-headline-add-descriptor))
+
+;;;###autoload
+(defun zettelkasten-headline-add-collection ()
+  "Add descriptor to current headline."
+  (interactive)
+  (let* ((current
+          (split-string
+           (or (org-entry-get nil "COLLECTION") "")))
+         (add
+          (ivy-read "Collection [Headline]: "
+                    (zettelkasten-cache-values-collection)))
+         (join
+          (sort (append current (list add)) 'string<))
+         (string
+          (mapconcat 'identity join " ")))
+    (org-set-property "COLLECTION" string))
+  (zettelkasten-headline-add-collection))
+
 
 ;;;###autoload
 (defun zettelkasten-finish-zettel ()
@@ -401,25 +398,6 @@
                                    "gitstats .git gitstats &&"
                                    "firefox 'gitstats/index.html'")))
 
-;;;###autoload
-(defun zettelkasten-links-in-file (filename)
-  "Return list of linked zettel-ids."
-  (let ((matches))
-    (with-temp-buffer
-      (insert-file-contents filename)
-      (goto-char 1)
-      (while (search-forward-regexp "zk:[0-9-]+" nil t 1)
-        (push (plist-get
-               (car
-                (zettelkasten-cache-query-key-value
-                 :id
-                 (s-chop-prefix
-                  "zk:"
-                  (match-string-no-properties 0))))
-               :file)
-              matches)))
-    matches))
-
 
 (defun zettelkasten--get-all-zettel ()
   (org-el-cache-select
@@ -430,32 +408,25 @@
 (defun zettelkasten--get-collection-zettel ()
   (let ((collection
          (completing-read "Collection: "
-                          (zettelkasten-cache-get-collection-values))))
-    (org-el-cache-select
-     zettelkasten-cache
-     (lambda (filename entry)
-       (member collection (plist-get entry :collections))))))
+                          (zettelkasten-cache-values-collection))))
+    (zettelkasten-cache-entries-where-member collection :collections)))
 
 (defun zettelkasten--get-descriptor-zettel (&optional entries)
+  "Select descriptor and show shared descriptors or zettel."
   (let* ((descriptor
           (completing-read
-           (format "Descriptor [%s]: " (if entries
-                                           (safe-length entries)
-                                         nil))
+           (format "Descriptor [%s]: " (when entries (safe-length entries)))
            (if entries
-               (append (zettelkasten-cache-get-descriptor-values entries)
+               (append (zettelkasten-cache-values-descriptor entries)
                        '("Break"))
-             (zettelkasten-cache-get-descriptor-values))))
+             (zettelkasten-cache-values-descriptor))))
          (zettel
           (if entries
               (-filter
                (lambda (entry)
                  (member descriptor (plist-get entry :descriptors)))
                entries)
-            (org-el-cache-select
-             zettelkasten-cache
-             (lambda (filename entry)
-               (member descriptor (plist-get entry :descriptors)))))))
+            (zettelkasten-cache-entries-where-member descriptor :descriptors))))
     (if (string= descriptor "Break")
         entries
       (if (<= (safe-length zettel) zettelkasten-descriptor-cycle-threshold)
@@ -476,44 +447,7 @@
      (setq zettelkasten-zettel-selected selection)))
   zettelkasten-zettel-selected)
 
-(defun zettelkasten-cache-get-collection-values ()
-  (let ((collections nil))
-    (org-el-cache-each
-     zettelkasten-cache
-     (lambda (filename data)
-       (setq collections
-             (cons
-              (plist-get data :collections)
-              collections))))
-    (delete-dups (-flatten collections))))
-
-(defun zettelkasten-cache-get-descriptor-values (&optional entries)
-  (delete-dups
-   (-flatten
-    (if (not entries)
-        (org-el-cache-map
-         zettelkasten-cache
-         (lambda (filename entry)
-           (plist-get entry :descriptors)))
-
-      (mapcar
-       (lambda (arg)
-         (plist-get arg :descriptors))
-       entries)))))
-
-
-(defun zettelkasten-cache-query-filename (filename)
-  (org-el-cache-get zettelkasten-cache filename))
-
-(defun zettelkasten-cache-query-key-value (key value)
-  (org-el-cache-select
-   zettelkasten-cache
-   (lambda (filename entry)
-     (--any
-      (string= (plist-get entry key) value)
-      entry))))
-
-
+;;;###autoload
 (defun zettelkasten-open-zettel ()
   (interactive)
   (ivy-read
@@ -573,13 +507,8 @@
 
 (defun zettelkasten--get-backlinks (file)
   "Files linking to FILE."
-  (let* ((file-entry
-          (car (org-el-cache-select
-                zettelkasten-cache
-                (lambda (filename entry)
-                  (string= filename (buffer-file-name))))))
-         (file-id
-          (plist-get file-entry :id)))
+  (let ((file-id
+         (plist-get (zettelkasten-cache-entry-filename) :id)))
     (org-el-cache-select
      zettelkasten-cache
      (lambda (filename entry)
@@ -595,9 +524,7 @@
       (zettelkasten--get-backlinks (buffer-file-name)))
      :action
      (lambda (selection)
-       (find-file (cdr selection))
-       ))
-    )
+       (find-file (cdr selection)))))
 
 
 (defhydra hydra-zettelkasten (:columns 4 :color blue)
@@ -612,33 +539,40 @@
   ("L" zettelkasten-new-zettel-insert-link-at-point "Link new Zettel")
   ("p" zettelkasten-push-link-to-current "Push Link")
   ("f" zettelkasten-set-context-filter "Set filter")
+  ("D" zettelkasten-replace-descriptor "Replace Desc.")
+  ("I" zettelkasten-info "Info")
+
 
   ("c" zettelkasten-zettel-add-collection "Add Collection" :column "Zettel")
+  ("C" zettelkasten-headline-add-collection "Add collection headline")
   ("#" zettelkasten-zettel-add-descriptor "Add descriptor")
   ("'" zettelkasten-headline-add-descriptor "Add descriptor headline")
   ("l" zettelkasten-insert-link-at-point "Insert Link")
   ("r" zettelkasten-refile "Refile")
-  ("y" zettelkasten-zettel-similarities "Similarities")
+  ("i" zettelkasten-zettel-info "Info")
+  ("v" zettelkasten-vis-buffer "visualize")
 
   ("sl" zetteldeft-avy-link-search "search link" :column "Search")
   ("sf" zetteldeft-search-current-id "seach current file")
   ("sd" zetteldeft-deft-new-search "search deft ")
   ("st" zetteldeft-avy-tag-search "search tag")
   ("n" org-noter "noter" :column "Other")
-  ("C" zettelkasten-force-update-cache "Reset Cache")
+  ("Q" zettelkasten-force-update-cache "Reset Cache")
   ("q" nil "Quit"))
 
 (defun zettelkasten-each-file ()
   (interactive)
-  (let* ((path "/home/job/Dropbox/db/journal/")
+  (let* ((path "/home/job/Dropbox/db/zk/zettel/txt/")
          (files
          (directory-files path nil ".org$")))
     (dolist (zettel files)
       (let ((fullfname
              (concat path "/" zettel)))
         (find-file fullfname)
-        (journal-repl-beg)
-        (zettelkasten-zettel-add-collection "journal")
+        (zettelkasten-zettel-add-collection "txt")
+        (goto-char (point-min))
+        (while (search-forward "txt txt" nil t)
+          (replace-match "txt"))
         (save-buffer)
         (kill-current-buffer)))))
 
