@@ -32,6 +32,7 @@
 (require 'hydra)
 (require 's)
 (require 'zettelkasten-cache)
+(require 'zettelkasten-visualization)
 
 (defgroup zettelkasten nil
   "Quick manipulation of textual checkboxes."
