@@ -94,7 +94,8 @@
 (defun zettelkasten-extract-link-ids (filename el)
   (org-element-map el 'link
     (lambda (link)
-      (when (string= (org-element-property :type link) "zk")
+      (when (or (string= (org-element-property :type link) "zk")
+                (string= (org-element-property :type link) "autocite"))
         (org-element-property :path link)))))
 
 (def-org-el-cache
@@ -121,15 +122,10 @@
   (org-el-cache-get zettelkasten-cache (or filename (buffer-file-name))))
 
 (defun zettelkasten-cache-entry-ids (ids)
-  (if (string= (type-of ids) "string")
-      (car (org-el-cache-select
-            zettelkasten-cache
-            (lambda (filename entry)
-              (string= (plist-get entry :id) ids))))
-    (org-el-cache-select
-     zettelkasten-cache
-     (lambda (filename entry)
-       (member)))))
+  (org-el-cache-select
+   zettelkasten-cache
+   (lambda (filename entry)
+     (member (plist-get entry :id) ids))))
 
 (defun zettelkasten-cache-entries-where-member (match key)
   (org-el-cache-select
@@ -160,6 +156,42 @@
        zettelkasten-cache
        (lambda (filename entry)
          (plist-get entry :descriptors)))))))
+
+
+;;;###autoload
+(defun zettelkasten-cache-check-id-unique ()
+  (interactive)
+  (org-el-cache-each
+   zettelkasten-cache
+   (lambda (filename1 entry1)
+     (let ((id1 (plist-get entry1 :id)))
+       (org-el-cache-each
+        zettelkasten-cache
+        (lambda (filename2 entry2)
+          (let ((id2 (plist-get entry2 :id)))
+
+            (unless (string= filename1 filename2)
+              (when (string= id1 id2)
+                (message (format "%s = %s" filename1 filename2)))))))))))
+
+;;;###autoload
+(defun zettelkasten-chache-check-links ()
+  (interactive)
+  (let ((ids
+         (org-el-cache-map
+          zettelkasten-cache
+          (lambda (filename entry)
+            (plist-get entry :id)))))
+    (switch-to-buffer "*zettelkasten-info*")
+    (erase-buffer)
+    (org-mode)
+    (org-el-cache-each
+     zettelkasten-cache
+     (lambda (filename entry)
+       (dolist (link (plist-get entry :links))
+         (unless (member link ids)
+           (insert (format "[[%s]]: %s\n" filename link))))))))
+
 
 
 (provide 'zettelkasten-cache)
