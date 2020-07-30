@@ -50,13 +50,13 @@ Comparison is done with `equal'."
 (defun zettelkasten-vis-add-nodes (entries)
   (dolist (entry entries)
     (let ((id (plist-get entry :id))
-          (title (plist-get entry :title)))
+          (title (plist-get entry :title))
+          (file (plist-get entry :file)))
       (insert (format "G.add_node(\"%s\")\n" id))
       (unless (member "journal" (plist-get entry :collections))
         (insert
-         (format "labeldict.update({'%s': \"%s\"})\n"
-                 id
-                 (s-truncate 20 title)))))))    
+         (format "labeldict.update({'%s': \"\\href{%s}{%s}\"})\n"
+                 id file (s-truncate 20 title)))))))
 
 (defun zettelkasten-vis-colorize-nodes (entries)
   (dolist (entry entries)
@@ -69,7 +69,7 @@ Comparison is done with `equal'."
           ((member "content" (plist-get entry :collections))
            (insert
             (format "color_map.append('red')\n")))
-          ((member "project" (plist-get entry :collections))
+          ((member "proj" (plist-get entry :collections))
            (insert
             (format "color_map.append('pink')\n")))
           ((member "journal" (plist-get entry :collections))
@@ -92,19 +92,28 @@ Comparison is done with `equal'."
 (defun zettelkasten-vis-buffer ()
   (interactive)
   (let* ((pyfile "/home/job/Dropbox/db/zk/zettel/tmp/vis.py")
-         (outfile "/home/job/Dropbox/db/zk/zettel/img/vis.png")
+         (outfile "/home/job/Dropbox/db/zk/zettel/img/vis.pdf")
+         (root-entry (zettelkasten-cache-entry-filename (buffer-file-name)))
+         (root-fname (plist-get root-entry :file))
+         (root-title (plist-get root-entry :title))
          (depth (read-string "Depth: " "3"))
          (nodes (zettelkasten-vis-buffer-nodes (buffer-file-name)
                                                (string-to-number depth))))
     (with-temp-file pyfile
       (progn
         (insert "import networkx as nx\n")
+        (insert "import matplotlib\n")
+        (insert "matplotlib.use('pgf')\n")
         (insert "import matplotlib.pyplot as plt\n")
         (insert "G = nx.Graph()\n")
         (insert "plt.figure(num=None, figsize=(16, 17), dpi=120)\n")
         (insert "color_map = []\n")
         (insert "labeldict = {}\n")
-        (zettelkasten-vis-insert-nodes nodes)
+        (insert "plt.rc('text', usetex=True)\n")
+        (insert "plt.rc('font', family='serif')\n")
+        (insert "matplotlib.rcParams['pgf.preamble']=[r'\\usepackage[colorlinks=true, urlcolor=black]{hyperref}', ]\n")
+        (insert (format "plt.title(r\"\\href{%s}{%s}\")\n" root-fname root-title))
+        (zettelkasten-vis-add-nodes nodes)
         (zettelkasten-vis-colorize-nodes nodes)
         (zettelkasten-vis-add-edges nodes)
         ;; (insert "pos = nx.spring_layout(G)\n")
