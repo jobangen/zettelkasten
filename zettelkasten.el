@@ -81,11 +81,15 @@
   :group 'zettelkasten
   :type 'list)
 
+(defcustom zettelkasten-org-agenda-integration nil
+  "If non-nil, add zettel with todos to `org-agenda-files'"
+  :type 'boolean)
+
+
 (defun zettelkasten-context-work-fun (entry)
   (and (not (member "journal" (plist-get entry :collections)))
        (not (member "@Rezept" (plist-get entry :descriptors)))
        (not (member "priv" (plist-get entry :collections)))))
-
 
 (setq zettelkasten-context-filter-list
       '(("All" . (lambda (entry) t))
@@ -106,7 +110,7 @@
 (push '("z" "Zettel append" plain
         (file (lambda ()
                 (cdr (zettelkasten--select-zettel (zettelkasten--get-all-zettel)))))
-        "** TODO %?
+        "** TODO %? :refile:zk:
 %i")
       org-capture-templates)
 
@@ -178,7 +182,7 @@
 (defun zettelkasten-refile-to-zettel (zettel-lst)
   (org-back-to-heading)
   (org-todo "TODO")
-  (org-set-tags '("refile"))
+  (org-set-tags '("refile" "zk"))
   (org-cut-subtree)
   (ivy-read "Links: "
             (zettelkasten--get-cons-title-fname zettel-lst)
@@ -526,6 +530,28 @@
      :action
      (lambda (selection)
        (find-file (cdr selection)))))
+
+;;;###autoload
+(defun zettelkasten-update-org-agenda-files ()
+  (interactive)
+  (when zettelkasten-org-agenda-integration
+    (let ((not-zettelkasten-agenda-files
+           (seq-filter
+            (lambda (filename)
+              (or (not (string-match "/home/job/Dropbox/db/zk/zettel/.*" filename))
+                  (string-match "/home/job/Dropbox/db/zk/zettel/jr/.*" filename)))
+            (org-agenda-files)))
+          (zettelkasten-agenda-files
+           (mapcar
+            (lambda (arg)
+              (plist-get arg :file))
+            (org-el-cache-select
+             zettelkasten-cache
+             (lambda (filename entry)
+               (and (plist-get entry :todo)
+                    (not (member "journal" (plist-get entry :collections)))))))))
+      (setq org-agenda-files (append not-zettelkasten-agenda-files
+                                     zettelkasten-agenda-files)))))
 
 
 (defhydra hydra-zettelkasten (:columns 4 :color blue)
