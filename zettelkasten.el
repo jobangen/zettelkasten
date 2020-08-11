@@ -61,7 +61,7 @@
 #+COLLECTION: %^{Type|index|content|proj}
 #+DESCRIPTOR: @%\\1
 
-* 
+* Inhalt
 %i
 
 * Refile")
