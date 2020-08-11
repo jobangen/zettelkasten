@@ -68,7 +68,8 @@
            (descriptor-split
             (split-string descriptor-string))
            (descriptor-headings
-            (-flatten (org-element-map element 'node-property
+            (-flatten
+             (org-element-map element 'node-property
                (lambda (property)
                  (when (string= (org-element-property :key property) "DESCRIPTOR")
                    (split-string (org-element-property :value property)))))))
@@ -76,20 +77,19 @@
             (append descriptor-split descriptor-headings))
            (descriptor-list nil))
       (dolist (descriptor descriptor-conc)
-        (if (s-contains? zettelkasten-descriptor-chain-sep descriptor)
-            (progn
-              (let* ((chain-split
-                      (split-string descriptor zettelkasten-descriptor-chain-sep))
-                     (chain-part (car chain-split)))
-                (push chain-part descriptor-list)
-                (pop chain-split)
-                (dolist (descriptor chain-split)
-                  (setq chain-part
-                        (concat
-                         chain-part zettelkasten-descriptor-chain-sep descriptor))
-                  (push chain-part descriptor-list))))
-          (push descriptor descriptor-list)))
-      descriptor-list)))
+        (cond ((s-contains? zettelkasten-descriptor-chain-sep descriptor)
+               (let* ((chain-split
+                       (split-string descriptor zettelkasten-descriptor-chain-sep))
+                      (chain-part (car chain-split)))
+                 (push chain-part descriptor-list)
+                 (pop chain-split)
+                 (dolist (descriptor chain-split)
+                   (setq chain-part
+                         (concat
+                          chain-part zettelkasten-descriptor-chain-sep descriptor))
+                   (push chain-part descriptor-list))))
+              (t (push descriptor descriptor-list)))))
+    descriptor-list))
 
 (defun zettelkasten-extract-link-ids (filename el)
   (org-element-map el 'link
