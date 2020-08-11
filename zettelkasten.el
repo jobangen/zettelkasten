@@ -510,6 +510,19 @@
      (find-file
       (cdr selection)))))
 
+(defun zettelkasten-open-zettel-todo ()
+  (interactive)
+  (ivy-read
+   "Zettel: " (zettelkasten--get-cons-title-fname
+               (org-el-cache-select
+                zettelkasten-cache
+                (lambda (filename entry)
+                  (plist-get entry :todo))))
+   :action
+   (lambda (selection)
+     (find-file (cdr selection)))))
+
+
 (defun zettelkasten--get-backlinks (file)
   "Files linking to FILE."
   (let ((file-id
@@ -560,6 +573,7 @@
   ("R" zettelkasten-open-zettel-random "Open random")
   ("ä" zettelkasten-open-zettel-collection "Open collection")
   ("d" zettelkasten-open-zettel-descriptor "Open descriptor")
+  ("t" zettelkasten-open-zettel-todo "Open todo")
   ("b" zettelkasten-open-backlink "Backlinks")
 
   ("z" zettelkasten-new-zettel "New Zettel" :column "Zettelkasten")

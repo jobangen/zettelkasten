@@ -98,6 +98,13 @@
                 (string= (org-element-property :type link) "autocite"))
         (org-element-property :path link)))))
 
+(defun zettelkasten-extract-todo-state (filename el)
+  (when (org-element-map el 'headline
+          (lambda (headline)
+            (org-element-property :todo-type headline)))
+    t))
+
+
 (def-org-el-cache
   zettelkasten-cache
   (list zettelkasten-zettel-directory)
@@ -108,7 +115,8 @@
      :id (zettelkasten-extract-id filename)
      :collections (zettelkasten-extract-collections filename element)
      :descriptors (zettelkasten-extract-descriptors filename element)
-     :links (zettelkasten-extract-link-ids filename element))))
+     :links (zettelkasten-extract-link-ids filename element)
+     :todo (zettelkasten-extract-todo-state filename element))))
 
 ;; Update / Initialize the cache
 (add-hook 'after-save-hook (lambda () (org-el-cache-update zettelkasten-cache)))
