@@ -223,6 +223,23 @@
          (car (zettelkasten-cache-entry-ids (list path)))))
     (find-file (plist-get zettel-entry :file))))
 
+
+(defun zettelkasten-org-zk-export (path desc format)
+  "Format zk links for export."
+  (let* ((entry
+          (car (zettelkasten-cache-entry-ids (list path))))
+         (filename
+          (s-replace-all '(("/home/job/Dropbox/db/zk/zettel/" . "")
+                          (".org" . ".html"))
+                         (plist-get entry :file))))
+    (when (eq format 'html)
+      (format "<a href=\"./%s\">%s</a>"
+              filename
+              desc))))
+
+(org-link-set-parameters "zk" :export 'zettelkasten-org-zk-export)
+
+
 ;;; https://emacs.stackexchange.com/questions/21713/how-to-get-property-values-from-org-file-headers
 ;;; refactor!
 (defun org-global-props (&optional property buffer)
