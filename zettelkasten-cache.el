@@ -29,7 +29,7 @@
           ((s-prefix? "jr" fname-chop)
            (s-chop-prefix "jr/" fname-chop))
           ((s-prefix? "eph" fname-chop)
-           (s-left 15 (s-chop-prefix "jr/" fname-chop)))
+           (s-left 15 (s-chop-prefix "eph/" fname-chop)))
           (t (s-left 15 fname-chop)))))
 
 (defun zettelkasten-extract-collections (filename element)
