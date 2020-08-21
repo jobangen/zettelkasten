@@ -79,7 +79,21 @@
             (append descriptor-split descriptor-headings))
            (descriptor-list nil))
       (dolist (descriptor descriptor-conc)
-        (cond ((s-contains? zettelkasten-descriptor-chain-sep descriptor)
+        (cond ((s-contains? "<>" descriptor)
+               (let* ((chain-split (split-string
+                                    (s-replace "#" "" descriptor) "<>")))
+                 (push (format "#%s" (car chain-split)) descriptor-list)
+                 (push (format "#%s" (cadr chain-split)) descriptor-list)
+                 (push (format "#%s<>%s"
+                               (car chain-split) (cadr chain-split))
+                       descriptor-list)
+                 (push (format "#%s>%s"
+                               (car chain-split) (cadr chain-split))
+                       descriptor-list)
+                 (push (format "#%s>%s"
+                               (cadr chain-split) (car chain-split))
+                       descriptor-list)))
+              ((s-contains? zettelkasten-descriptor-chain-sep descriptor)
                (let* ((chain-split
                        (split-string descriptor zettelkasten-descriptor-chain-sep))
                       (chain-part (car chain-split)))
@@ -90,8 +104,8 @@
                          (concat
                           chain-part zettelkasten-descriptor-chain-sep descriptor))
                    (push chain-part descriptor-list))))
-              (t (push descriptor descriptor-list)))))
-    descriptor-list))
+              (t (push descriptor descriptor-list))))
+      descriptor-list)))
 
 (defun zettelkasten-extract-link-ids (filename el)
   (org-element-map el 'link
