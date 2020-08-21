@@ -603,6 +603,13 @@
                                      zettelkasten-agenda-files)))))
 
 
+;;;###autoload
+(defun zettelkasten-headline-set-followup ()
+  (interactive)
+  (org-todo "TODO")
+  (org-set-property "CATEGORY" "zkt")
+  (org-set-tags '("zkt" "followup")))
+
 (defhydra hydra-zettelkasten (:columns 4 :color blue)
   "Zettelkasten"
   ("C-ä" zettelkasten-open-zettel "Open Zettel" :column "Open")
