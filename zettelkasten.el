@@ -110,7 +110,11 @@
 (push '("z" "Zettel append" plain
         (file (lambda ()
                 (cdr (zettelkasten--select-zettel (zettelkasten--get-all-zettel)))))
-        "** TODO %? :refile:zk:
+        "** TODO :refile:zkt:
+:PROPERTIES:
+:CATEGORY: zkt
+:END:
+%?
 %i")
       org-capture-templates)
 
@@ -182,7 +186,8 @@
 (defun zettelkasten-refile-to-zettel (zettel-lst)
   (org-back-to-heading)
   (org-todo "TODO")
-  (org-set-tags '("refile" "zk"))
+  (org-set-tags '("refile" "zkt"))
+  (org-set-property "CATEGORY" "zkt")
   (org-cut-subtree)
   (ivy-read "Links: "
             (zettelkasten--get-cons-title-fname zettel-lst)
