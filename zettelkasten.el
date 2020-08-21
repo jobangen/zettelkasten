@@ -189,8 +189,8 @@
 
 (defun zettelkasten-refile-to-headline ()
   (org-back-to-heading)
-  (org-todo "")
-  (org-set-tags '())
+  ;; (org-todo "")
+  ;; (org-set-tags '())
   (org-cut-subtree)
   (counsel-outline)
   (end-of-line)
@@ -286,7 +286,7 @@
     (org-insert-heading)
     (zettelkasten-insert-link-at-point link-target)
     (org-todo "TODO")
-    (org-set-tags '("refile"))
+    (org-set-tags '("refile" "zkt"))
     (org-cycle-level))
   (previous-buffer))
 
@@ -610,6 +610,12 @@
   (org-set-property "CATEGORY" "zkt")
   (org-set-tags '("zkt" "followup")))
 
+;;;###autoload
+(defun zettelkasten-headline-reset ()
+  (interactive)
+  (org-todo "")
+  (org-set-tags '()))
+
 (defhydra hydra-zettelkasten (:columns 4 :color blue)
   "Zettelkasten"
   ("C-ä" zettelkasten-open-zettel "Open Zettel" :column "Open")
@@ -626,15 +632,17 @@
   ("D" zettelkasten-replace-descriptor "Replace Desc.")
   ("I" zettelkasten-info "Info")
 
-
   ("c" zettelkasten-zettel-add-collection "Add Collection" :column "Zettel")
-  ("C" zettelkasten-headline-add-collection "Add collection headline")
   ("#" zettelkasten-zettel-add-descriptor "Add descriptor")
-  ("'" zettelkasten-headline-add-descriptor "Add descriptor headline")
   ("l" zettelkasten-insert-link-at-point "Insert Link")
-  ("r" zettelkasten-refile "Refile")
   ("i" zettelkasten-zettel-info "Info")
   ("v" zettelkasten-vis-buffer "visualize")
+
+  ("hc" zettelkasten-headline-add-collection "Add collection" :column "Headline")
+  ("h#" zettelkasten-headline-add-descriptor "Add descriptor headline")
+  ("r" zettelkasten-refile "Refile" :color amaranth)
+  ("hf" zettelkasten-headline-set-followup "Followup")
+  ("hr" zettelkasten-headline-reset "Reset")
 
   ("sl" zetteldeft-avy-link-search "search link" :column "Search")
   ("sf" zetteldeft-search-current-id "seach current file")
@@ -642,6 +650,7 @@
   ("st" zetteldeft-avy-tag-search "search tag")
   ("n" org-noter "noter" :column "Other")
   ("Q" zettelkasten-force-update-cache "Reset Cache")
+  ("u" zettelkasten-update-org-agenda-files "Update agenda")
   ("q" nil "Quit"))
 
 (defun zettelkasten-each-file ()
