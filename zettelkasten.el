@@ -131,6 +131,20 @@
         :jump-to-captured t)
       org-capture-templates)
 
+(push '("e" "Zettel ephemera" plain
+        (file (lambda ()
+                (let ((name (or zettel-capture-filename (read-string "Name: "))))
+                  (expand-file-name
+                   (concat zettelkasten-zettel-directory "/eph/"
+                           (format-time-string "%Y-%m-%d-%H%M-")
+                           name
+                           ".org")))))
+        (function zettelkasten-zettel-template)
+        :immediate-finish t
+        :jump-to-captured t)
+      org-capture-templates)
+
+
 (defun zettelkasten--title-to-fname (title)
   (s-replace-all
    '((" " . "-") ("/". "-")
