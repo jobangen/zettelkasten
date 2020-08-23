@@ -287,6 +287,7 @@
     (zettelkasten-insert-link-at-point link-target)
     (org-todo "TODO")
     (org-set-tags '("refile" "zkt"))
+    (org-set-property "CATEGORY" "zkt")
     (org-cycle-level))
   (previous-buffer))
 
