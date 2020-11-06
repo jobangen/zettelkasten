@@ -238,31 +238,28 @@
 ;;;###autoload
 (defun zettelkasten-insert-link-at-point (&optional link-target)
   (interactive)
-  (let* ((zettel
-          (or link-target
-              (cdr (zettelkasten--select-zettel (zettelkasten--get-all-zettel)))))
+  (let* ((zettel-target link-target)
+         (zettel
+          (save-excursion
+            (unless link-target
+              (ivy-read "Link Zettel: "
+                        (zettelkasten--get-cons-title-fname
+                         (zettelkasten--get-all-zettel))
+                        :action
+                        (lambda (selection)
+                          (if (listp selection)
+                              (setq zettel-target (cdr selection))
+                            (other-window 1)
+                            (zettelkasten-new-zettel selection)
+                            (setq zettel-target (buffer-file-name))))))))
          (zettel-data
-          (zettelkasten-cache-entry-filename zettel))
+          (zettelkasten-cache-entry-filename zettel-target))
          (zettel-id
           (plist-get zettel-data :id))
          (zettel-title
           (read-string "Title: "
                        (plist-get zettel-data :title))))
     (insert (format "[[zk:%s][%s]]" zettel-id zettel-title))))
-
-;;;###autoload
-(defun zettelkasten-new-zettel-insert-link-at-point ()
-  (interactive)
-  (zettelkasten-new-zettel)
-  (let ((link-target
-         buffer-file-name))
-    (previous-buffer)
-    (kill-region
-     (region-beginning)
-     (region-end))
-    (zettelkasten-insert-link-at-point link-target))
-  (left-char)
-  (org-open-at-point))
 
 ;;;###autoload
 (defun zettelkasten-push-link-to-current ()
@@ -275,8 +272,9 @@
     (org-todo "TODO")
     (org-set-tags '("refile" "zkt"))
     (org-set-property "CATEGORY" "zkt")
-    (org-cycle-level))
-  (previous-buffer))
+    (org-cycle-level)
+    (save-buffer)
+    (kill-buffer)))
 
 ;; Dirs and Queries
 ;;;###autoload
@@ -483,7 +481,6 @@
    (format "Zettel [%s]: " (car zettelkasten-context-filter))
    (zettelkasten--get-cons-title-fname
     (zettelkasten--get-all-zettel))
-   :preselect "Inbox"
    :action
    (lambda (selection)
      (if (listp selection)
@@ -594,42 +591,48 @@
 ;;;###autoload
 (defun zettelkasten-headline-set-followup ()
   (interactive)
-  (org-todo "TODO")
-  (org-set-property "CATEGORY" "zkt")
-  (org-set-tags '("zkt" "followup")))
+  (save-excursion
+    (org-back-to-heading)
+    (org-todo "TODO")
+    (org-set-property "CATEGORY" "zkt")
+    (org-set-tags '("zkt" "followup"))))
 
 ;;;###autoload
 (defun zettelkasten-headline-reset ()
   (interactive)
-  (org-todo "")
-  (org-set-tags '()))
+  (save-excursion
+    (org-back-to-heading)
+    (org-set-tags '())
+    (org-todo "")
+    (ignore-errors
+      (org-priority ?\ ))))
 
-(defhydra hydra-zettelkasten (:columns 4 :color blue)
+(defhydra hydra-zettelkasten (:color blue)
   "Zettelkasten"
   ("C-ä" zettelkasten-open-zettel "Open Zettel" :column "Open")
   ("R" zettelkasten-open-zettel-random "Open random")
   ("ä" zettelkasten-open-zettel-collection "Open collection")
   ("d" zettelkasten-open-zettel-descriptor "Open descriptor")
-  ("t" zettelkasten-open-zettel-todo "Open todo")
-  ("b" zettelkasten-open-backlink "Backlinks")
 
-  ("z" zettelkasten-new-zettel "New Zettel" :column "Zettelkasten")
-  ("L" zettelkasten-new-zettel-insert-link-at-point "Link new Zettel")
-  ("p" zettelkasten-push-link-to-current "Push Link")
+  ("C-r" zettelkasten-inbox-process (format "Process inbox [%s]" 5) :color red :column "Inbox")
+  ("b" zettelkasten-inbox-bury "Bury" :color red)
+  ("t" zettelkasten-inbox-trash "Trash" :color red)
+
+  ("p" zettelkasten-capture-push "Push Link" :column "Zettelkasten")
   ("f" zettelkasten-set-context-filter "Set filter")
   ("D" zettelkasten-replace-descriptor "Replace Desc.")
   ("I" zettelkasten-info "Info")
 
-  ("c" zettelkasten-zettel-add-collection "Add Collection" :column "Zettel")
+  ("c" zettelkasten-zettel-add-collection "Add collection" :column "Zettel")
   ("#" zettelkasten-zettel-add-descriptor "Add descriptor")
-  ("l" zettelkasten-insert-link-at-point "Insert Link")
+  ("l" zettelkasten-insert-link-at-point "Insert link")
   ("i" zettelkasten-zettel-info "Info")
-  ("v" zettelkasten-vis-buffer "visualize")
+  ("v" zettelkasten-vis-buffer "Visualize")
 
   ("hc" zettelkasten-headline-add-collection "Add collection" :column "Headline")
-  ("h#" zettelkasten-headline-add-descriptor "Add descriptor headline")
-  ("r" zettelkasten-refile "Refile" :color amaranth)
-  ("hf" zettelkasten-headline-set-followup "Followup")
+  ("C-#" zettelkasten-headline-add-descriptor "Add descriptor")
+  ("r" zettelkasten-capture-refile "Refile" :color amaranth)
+  ("hf" zettelkasten-headline-set-followup "Set followup")
   ("hr" zettelkasten-headline-reset "Reset")
 
   ("sl" zetteldeft-avy-link-search "search link" :column "Search")
@@ -641,11 +644,251 @@
   ("u" zettelkasten-update-org-agenda-files "Update agenda")
   ("q" nil "Quit"))
 
+
+(defun zettelkasten-rfloc (file headline)
+  (let ((pos
+         (save-excursion
+           (save-selected-window
+             (if (string= file (buffer-file-name))
+                 (find-file file)
+               (find-file-other-window file))
+             (org-find-exact-headline-in-buffer headline)))))
+    (org-refile nil nil (list headline file nil pos))))
+
+(defun zettelkasten-refile-base (&optional arg)
+  (let* ((linked
+          (zettelkasten-cache-entry-ids
+           (plist-get (zettelkasten-cache-entry-filename) :links)))
+         (target nil) ;; Better solution?
+         (zettel-other-buffer
+          (save-selected-window
+            (plist-get
+             (zettelkasten-cache-entry-filename
+              (progn
+                (other-window 1)
+                (buffer-file-name)))
+             :title)))
+         (target-set
+          (if (or (equal arg '(4))
+                  (and (not linked)
+                       (s-starts-with?
+                        zettelkasten-zettel-directory
+                        (buffer-file-name)) ;; del if wrapper
+                       (not (equal (buffer-file-name) zettelkasten-inbox-file))))
+              (setq target (buffer-file-name))
+            (ivy-read "Refile to: "
+                      (zettelkasten--get-cons-title-fname
+                       (if (or (not (s-starts-with?
+                                     zettelkasten-zettel-directory
+                                     (buffer-file-name)))
+                               (equal (buffer-name)
+                                      "zettelkasten-inbox.org"))
+                           (zettelkasten--get-all-zettel)
+                         linked))
+                      :preselect zettel-other-buffer
+                      :action
+                      (lambda (selection)
+                        (setq target (cdr selection))))))
+         (headline
+          (save-excursion
+            (save-selected-window
+              (if (string= target (buffer-file-name))
+                  (find-file target)
+                (find-file-other-window target))
+              (ivy-read "Headline: "
+                        (counsel-outline-candidates))))))
+    (zettelkasten-rfloc target headline)
+    (cons target headline)))
+
+;;;###autoload
+(defun zettelkasten-refile (&optional arg)
+  (interactive)
+  (let ((initial-zettel (buffer-name))
+        (refile-data
+         (zettelkasten-refile-base arg)))
+    (unless (string= (car refile-data) (buffer-file-name))
+      (other-window 1))
+    (org-refile '(16))
+    (if (string= (cdr refile-data) "Refile")
+        (zettelkasten-refile)
+      (zettelkasten-headline-reset))
+    (when (string= initial-zettel "zettelkasten-inbox.org")
+      (zettelkasten-inbox-process))))
+
+;;;###autoload
+(defun zettelkasten-inbox-process ()
+  (interactive)
+  (ignore-errors
+    (windmove-left))
+  (find-file zettelkasten-inbox-file)
+  (widen)
+  (goto-char (point-min))
+  (search-forward "* Refile")
+  (org-sort-entries nil ?p)
+  (org-next-visible-heading 1)
+  (org-narrow-to-subtree)
+  (org-show-all))
+
+;;;###autoload
+(defun zettelkasten-inbox-bury ()
+  (interactive)
+  (widen)
+  (zettelkasten-rfloc zettelkasten-inbox-file "Refile")
+  (zettelkasten-inbox-process))
+
+;;;###autoload
+(defun zettelkasten-inbox-trash ()
+  (interactive)
+  (widen)
+  (org-todo "CANCELLED")
+  (zettelkasten-rfloc zettelkasten-inbox-file "Trash")
+  (zettelkasten-inbox-process))
+
+;; TODO: subitems, 
+;;;###autoload
+(defun zettelkasten-create-index-topic ()
+  (interactive)
+  (let* ((zettel-1
+          (zettelkasten-cache-entries-where-member "index>t" :collections))
+         (zettel-2
+          (org-el-cache-select
+           zettelkasten-cache
+           (lambda (filename entry)
+             (plist-get entry :index)))))
+    (switch-to-buffer-other-window "*zettelkasten-index*")
+    (erase-buffer)
+    (insert (format "#+TITLE: Zettelkasten index\n\n"))
+    (dolist (entry zettel-1)
+      (let ((fname (plist-get entry :file))
+            (title (plist-get entry :title)))
+        (insert (format "- [[file:%s][%s]]\n" fname title))))
+    (dolist (entry zettel-2)
+      (let ((fname (plist-get entry :file))
+            (title (plist-get entry :title))
+            (index (plist-get entry :index)))
+        (dolist (idx index)
+          (goto-char (point-min))
+          (let* ((idx-split (split-string idx "::"))
+                 (idx-main (car idx-split))
+                 (idx-sub (nth 1 idx-split)))
+            (while (search-forward (format "[%s]]" idx-main) nil t)
+              (end-of-line)
+              (newline)
+              (if (> (length idx-split) 1)
+                  (insert (format "  - [[file:%s][%s]]" fname idx-sub))
+                (insert (format "  - [[file:%s][%s]]" fname title))))))))
+    (org-mode)
+    (previous-line)
+    (ignore-errors
+      (org-sort-list t ?a))))
+
+
+;;;###autoload
+(defun zettelkasten-capture-push ()
+  (interactive)
+  (setq zettelkasten-capture-state 'push)
+  (zettelkasten-capture))
+
+(defun zettelkasten-link-zettel-other-window ()
+  (let* ((other
+          (save-excursion
+            (save-selected-window
+              (other-window 1)
+              (buffer-file-name))))
+         (id (plist-get (zettelkasten-cache-entry-filename other) :id))
+         (title (plist-get (zettelkasten-cache-entry-filename other) :title)))
+    (insert (format "** [[zk:%s][%s]]" id title))))
+
+;;;###autoload
+(defun zettelkasten-capture-refile ()
+  (interactive)
+  (setq zettelkasten-capture-state 'refile)
+  (zettelkasten-capture))
+
+(defun zettelkasten-refile-subtree-other-window ()
+  (let ((current-rfloc
+         (list
+          (org-display-outline-path t t nil t)
+          (buffer-file-name (buffer-base-buffer))
+          nil
+          (org-with-wide-buffer
+           (org-back-to-heading t)
+           (point-marker)))))
+    (other-window 1)
+    (zettelkasten-headline-reset)
+    (org-refile nil nil current-rfloc)
+    (other-window 1)))
+
+;;;###autoload
+(defun zettelkasten-capture-finalize ()
+  (interactive)
+  (cond ((equal zettelkasten-capture-state 'push)
+         (progn
+           (setq zettelkasten-capture-state t)
+           (zettelkasten-link-zettel-other-window)))
+        ((equal zettelkasten-capture-state 'refile)
+         (progn
+           (zettelkasten-refile-subtree-other-window)
+           (setq zettelkasten-capture-state t)))
+        (zettelkasten-capture-state
+         (progn
+           (save-buffer)
+           (zettelkasten-capture-kill)
+           (other-window 1)
+           (when (equal (buffer-file-name) zettelkasten-inbox-file)
+             (zettelkasten-inbox-process)
+             (zettelkasten-zettel-info))))
+        (t (zettelkasten-capture-kill))))
+
+;;;###autoload
+(defun zettelkasten-capture-kill ()
+  (interactive)
+  (setq zettelkasten-capture-state nil)
+  (kill-current-buffer))
+
+
+(defvar zettelkasten-capture-state nil)
+
+(defvar zettelkasten-capture-mode-map
+  (let ((map (make-sparse-keymap)))
+    (define-key map "\C-c\C-c" #'zettelkasten-capture-finalize)
+    (define-key map "\C-c\C-k" #'zettelkasten-capture-kill)
+    map)
+  "Keymap for `zettelkasten-capture-mode', a minor mode.")
+
+(defvar zettelkasten-capture-mode-hook nil
+  "Hook for the `zettelkasten-capture-mode' minor mode.")
+
+(define-minor-mode zettelkasten-capture-mode
+  "Minor mode for special key bindings in a zettelkasten capture buffer.
+Turning on this mode runs the normal hook `zettelkasten-capture-mode-hook'."
+  nil " capture" zettelkasten-capture-mode-map
+  (setq-local
+   header-line-format
+   (substitute-command-keys
+    "\\<zettelkasten-capture-mode-map>Capture buffer, finish \
+`\\[zettelkasten-capture-finalize]', abort `\\[zettelkasten-capture-kill]'.")))
+
+;;;###autoload
+(defun zettelkasten-capture ()
+  (interactive)
+  (delete-other-windows)
+  (split-window-horizontally)
+  (other-window 1 nil)
+  (switch-to-next-buffer)
+  (zettelkasten-open-zettel)
+  (goto-char (point-min))
+  (end-of-line)
+  (search-forward "*")
+  (zettelkasten-capture-mode))
+
+
+
 (defun zettelkasten-each-file ()
   (interactive)
   (let* ((path "/home/job/Dropbox/db/zk/zettel/txt/")
          (files
-         (directory-files path nil ".org$")))
+          (directory-files path nil ".org$")))
     (dolist (zettel files)
       (let ((fullfname
              (concat path "/" zettel)))
