@@ -107,6 +107,11 @@
               (t (push descriptor descriptor-list))))
       descriptor-list)))
 
+(defun zettelkasten-extract-index (filename element)
+  (ignore-errors
+    (split-string (zettelkasten-extract-value element "INDEX") "\"\s\"" t "\"")))
+
+
 (defun zettelkasten-extract-link-ids (filename el)
   (org-element-map el 'link
     (lambda (link)
