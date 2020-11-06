@@ -142,7 +142,9 @@
      :id (zettelkasten-extract-id filename)
      :collections (zettelkasten-extract-collections filename element)
      :descriptors (zettelkasten-extract-descriptors filename element)
+     :index (zettelkasten-extract-index filename element)
      :links (zettelkasten-extract-link-ids filename element)
+     :custom-ids (zettelkasten-extract-custom-ids filename element)
      :todo (zettelkasten-extract-todo-state filename element))))
 
 ;; Update / Initialize the cache
