@@ -162,6 +162,21 @@
      ("ü" . "ue") ("ö" . "oe")
      ("é" . "e") ("ó" . "o"))
    (s-downcase title)))
+
+;;;###autoload
+(defun zettelkasten-capture-elfeed ()
+  (interactive)
+  (let ((title
+         (progn
+           (goto-char (point-min))
+           (search-forward "Title: ")
+           (s-replace "Title:" "" (thing-at-point 'line)))))
+    (mark-whole-buffer)
+    (org-capture nil "z")
+    (org-edit-headline (s-truncate 51 title))
+    (org-priority)
+    (org-capture-finalize)
+    (elfeed-show-next)))
   
 ;;;###autoload
 (defun zettelkasten-new-zettel (&optional title)
