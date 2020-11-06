@@ -114,9 +114,8 @@
 
 ;; Creation and (re)naming of zettel
 (push '("z" "Zettel append" plain
-        (file (lambda ()
-                (cdr (zettelkasten--select-zettel (zettelkasten--get-all-zettel)))))
-        "** TODO :refile:zkt:
+        (file+headline zettelkasten-inbox-file "Refile")
+        "\n** TODO :refile:zkt:
 :PROPERTIES:
 :CATEGORY: zkt
 :END:
