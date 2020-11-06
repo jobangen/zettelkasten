@@ -149,7 +149,6 @@
         :jump-to-captured t)
       org-capture-templates)
 
-
 (defun zettelkasten--title-to-fname (title)
   (s-replace-all
    '((" " . "-") ("/". "-")
@@ -188,61 +187,29 @@
           (zettelkasten--title-to-fname zettel-title))
     (org-capture nil "Z")
     (end-of-line)
-    (insert zettel-title))
-  (setq zettel-capture-filename nil)
-  (save-buffer))
-
-;;;###autoload
-(defun zettelkasten-refile ()
-  (interactive)
-  (let ((zettel-linked
-         (zettelkasten-cache-entry-ids
-          (plist-get (zettelkasten-cache-entry-filename) :links)))
-        (zettel-all (zettelkasten--get-all-zettel)))
-    (cond ((equal (buffer-name) "zettelkasten-inbox.org")
-           (zettelkasten-refile-to-zettel zettel-all))
-          ((not zettel-linked)
-           (zettelkasten-refile-to-headline))
-          ((yes-or-no-p "Refile to headline?")
-           (zettelkasten-refile-to-headline))
-          (t (zettelkasten-refile-to-zettel zettel-linked)))))
-
-(defun zettelkasten-refile-to-headline ()
-  (org-back-to-heading)
-  ;; (org-todo "")
-  ;; (org-set-tags '())
-  (org-cut-subtree)
-  (counsel-outline)
-  (end-of-line)
-  (newline)
-  (org-paste-subtree))
-
-(defun zettelkasten-refile-to-zettel (zettel-lst)
-  (org-back-to-heading)
-  (org-todo "TODO")
-  (org-set-tags '("refile" "zkt"))
-  (org-set-property "CATEGORY" "zkt")
-  (org-cut-subtree)
-  (ivy-read "Links: "
-            (zettelkasten--get-cons-title-fname zettel-lst)
-            :action
-            (lambda (selection)
-              (find-file (cdr selection))))
-  (goto-char (point-max))
-  (org-paste-subtree 2)
-  (save-buffer)
-  (when (y-or-n-p "Refile?")
-    (zettelkasten-refile)))
+    (insert zettel-title)
+    (setq zettel-capture-filename nil)
+    (save-buffer)))
 
 
 ;;; Open from Zettel
 (org-link-set-parameters "zk" :follow #'org-zettelkasten-open)
 
 (defun org-zettelkasten-open (path)
-  (let ((zettel-entry
-         (car (zettelkasten-cache-entry-ids (list path)))))
-    (find-file (plist-get zettel-entry :file))))
-
+  (when zettelkasten-capture-state
+    (kill-current-buffer))
+  (if (= (length path) 15)
+      (let ((zettel-entry
+             (car (zettelkasten-cache-entry-ids (list path)))))
+        (find-file (plist-get zettel-entry :file)))
+    (let ((zettel-entry
+           (car (zettelkasten-cache-entries-where-member path :custom-ids))))
+      (find-file (plist-get zettel-entry :file))
+      (goto-char (point-min))
+      (search-forward path nil t)
+      (org-back-to-heading)))
+  (when zettelkasten-capture-state
+    (zettelkasten-capture-mode)))
 
 (defun zettelkasten-org-zk-export (path desc format)
   "Format zk links for export."
