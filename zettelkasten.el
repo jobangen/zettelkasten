@@ -60,10 +60,11 @@
   :group 'zettelkasten
   :type 'string)
 
+
 (defun zettelkasten-zettel-template ()
   "#+TITLE: 
 #+DATE: %U
-#+COLLECTION: %^{Type|index|content|proj}
+#+COLLECTION: %^{Type|index|index>t|content|proj}
 #+DESCRIPTOR: @%\\1
 
 * Inhalt
