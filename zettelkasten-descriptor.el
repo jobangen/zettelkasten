@@ -24,11 +24,14 @@
          (list2-len (length list2-unique))
          (intersec (length (-intersection list1-unique list2-unique))))
     (/ (float intersec)
-       (- (+ list1-len list2-len) intersec))))
+       (- (+ list1-len
+             list2-len)
+          intersec))))
 
-(defun zettelkasten--calc-similarities (filename)
+(defun zettelkasten--calc-similarities (filename &optional descriptors)
   (let* ((desc
-          (zettelkasten--clean-descriptors filename))
+          (or descriptors
+              (zettelkasten--clean-descriptors filename)))
          (similarities nil))
     (org-el-cache-each
      zettelkasten-cache
@@ -36,25 +39,27 @@
        (unless (string= filename filename2)
          (let* ((desc2
                  (zettelkasten--clean-descriptors filename2))
+                (id2 (plist-get entry :id))
                 (sim (round (* 100 (zettelkasten-jaccard-index desc desc2)))))
            ;; (push (cons filename2 sim) similarities)
            (when (> sim 0)
-             (push (cons filename2 sim) similarities))))))
+             (push (cons id2 sim) similarities))))))
     (seq-take (sort similarities (lambda (x y) (> (cdr x) (cdr y)))) 25)))
 
 ;;;###autoload
 (defun zettelkasten-zettel-info ()
   (interactive)
-  (let* ((zettel-id (plist-get (zettelkasten-cache-entry-filename) :id))
+  (let* ((zettel-entry (zettelkasten-cache-entry-filename))
+         (zettel-id (plist-get zettel-entry :id))
+         (zettel-title (plist-get zettel-entry :title))
          (zettel-backlinks
-          (org-el-cache-select
-           zettelkasten-cache
-           (lambda (filename entry)
-             (member zettel-id (plist-get entry :links)))))
-         (zettel-title
-          (plist-get (zettelkasten-cache-entry-filename) :title))
+          (zettelkasten-cache-entries-where-member zettel-id :links))
          (zettel-sim
-          (zettelkasten--calc-similarities (buffer-file-name))))
+          (if (string= (buffer-file-name) zettelkasten-inbox-file)
+              (zettelkasten--calc-similarities (buffer-file-name)
+               (split-string
+                (or (org-entry-get nil "DESCRIPTOR") "")))
+            (zettelkasten--calc-similarities (buffer-file-name)))))
     (switch-to-buffer-other-window "*zettelkasten-info*")
     (erase-buffer)
     (org-mode)
@@ -67,13 +72,15 @@
       (insert "\n"))
     (insert "| JI | Title |\n|--|--|\n")
     (dolist (sim zettel-sim)
-      (insert (format "| %s | [[file:%s][%s]] |\n"
+      (insert (format "| %s | [[zk:%s][%s]] |\n"
                       (cdr sim)
                       (car sim)
                       (s-truncate
                        76
                        (plist-get
-                        (zettelkasten-cache-entry-filename (car sim)) :title)))))
+                        (car
+                         (zettelkasten-cache-entry-ids
+                          (list (car sim)))) :title)))))
     (insert "|--|--|")
     (previous-logical-line)
     (org-table-align)
