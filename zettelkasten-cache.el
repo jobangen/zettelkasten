@@ -119,6 +119,12 @@
                 (string= (org-element-property :type link) "autocite"))
         (org-element-property :path link)))))
 
+(defun zettelkasten-extract-custom-ids (filename el)
+  (org-element-map el 'node-property
+    (lambda (property)
+      (when (string= (org-element-property :key property) "CUSTOM_ID")
+        (org-element-property :value property)))))
+
 (defun zettelkasten-extract-todo-state (filename el)
   (when (org-element-map el 'headline
           (lambda (headline)
