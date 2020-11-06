@@ -55,6 +55,11 @@
   :group 'zettelkasten
   :type 'string)
 
+(defcustom zettelkasten-inbox-file (concat zettelkasten-zettel-directory "zettelkasten-inbox.org")
+  "Path to bibfile"
+  :group 'zettelkasten
+  :type 'string)
+
 (defun zettelkasten-zettel-template ()
   "#+TITLE: 
 #+DATE: %U
