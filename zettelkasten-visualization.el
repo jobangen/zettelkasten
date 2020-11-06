@@ -50,7 +50,8 @@ Comparison is done with `equal'."
 (defun zettelkasten-vis-add-nodes (entries)
   (dolist (entry entries)
     (let ((id (plist-get entry :id))
-          (title (s-replace "&" "\\&" (plist-get entry :title)))
+          (title
+           (s-replace-all '(("&" . "\\&")) (plist-get entry :title)))
           (file (plist-get entry :file)))
       (insert (format "G.add_node(\"%s\")\n" id))
       (unless (member "journal" (plist-get entry :collections))
@@ -126,10 +127,6 @@ Comparison is done with `equal'."
     (shell-command (format "python3 %s" pyfile))
     (other-window 1)
     (find-file outfile)))
-
-
-
-
 
 (defun zettelkasten-info ()
   (interactive)
