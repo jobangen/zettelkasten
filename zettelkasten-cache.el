@@ -147,8 +147,16 @@
      :custom-ids (zettelkasten-extract-custom-ids filename element)
      :todo (zettelkasten-extract-todo-state filename element))))
 
+
+(defun zettelkasten-zettel-p (&optional filename)
+  (s-starts-with?
+   zettelkasten-zettel-directory
+   (or filename (buffer-file-name))))
+
 ;; Update / Initialize the cache
-(add-hook 'after-save-hook (lambda () (org-el-cache-update zettelkasten-cache)))
+(add-hook 'after-save-hook (lambda ()
+                             (when (zettelkasten-zettel-p)
+                               (org-el-cache-update zettelkasten-cache))))
 
 ;;;###autoload
 (defun zettelkasten-force-update-cache ()
