@@ -310,6 +310,26 @@
                        (plist-get zettel-data :title))))
     (insert (format "[[zk:%s][%s]]" zettel-id zettel-title))))
 
+(defun zettelkasten-id-get-create ()
+  (let ((zk-id (org-entry-get nil "CUSTOM_ID")))
+    (if (and zk-id (stringp zk-id) (string-match "\\S-" zkid))
+        zk-id
+      (progn
+        (setq zk-id (concat "zk-" (org-id-new)))
+        (org-entry-put (point) "CUSTOM_ID" zk-id)
+        zk-id))))
+
+;;;###autoload
+(defun zettelkasten-insert-link-heading-at-point (&optional custom-id)
+  (interactive)
+  (if custom-id
+      (insert (format "[[zk:%s][%s]]"
+                      custom-id
+                      (completing-read "Description: ")))
+    (setq zettelkasten-capture-state 'link-heading)
+    (zettelkasten-capture)))
+
+
 ;;;###autoload
 (defun zettelkasten-push-link-to-current ()
   (interactive)
@@ -833,20 +853,36 @@
 
 
 ;;;###autoload
-(defun zettelkasten-capture-push ()
+(defun zettelkasten-capture-push (&optional heading)
   (interactive)
-  (setq zettelkasten-capture-state 'push)
+  (if (not heading)
+      (setq zettelkasten-capture-state 'push)
+    (setq zettelkasten-capture-state 'push-heading))
   (zettelkasten-capture))
 
-(defun zettelkasten-link-zettel-other-window ()
+(defun zettelkasten-link-zettel-other-window (&optional heading)
   (let* ((other
           (save-excursion
             (save-selected-window
               (other-window 1)
               (buffer-file-name))))
-         (id (plist-get (zettelkasten-cache-entry-filename other) :id))
-         (title (plist-get (zettelkasten-cache-entry-filename other) :title)))
+         (id (if (not heading)
+                 (plist-get (zettelkasten-cache-entry-filename other) :id)
+               (save-excursion
+                 (save-selected-window
+                   (other-window 1)
+                   (zettelkasten-id-get-create)
+                   (save-buffer)))))
+         (title (if (not heading)
+                    (plist-get (zettelkasten-cache-entry-filename other) :title)
+                  (save-excursion
+                    (save-selected-window
+                      (other-window 1)
+                      (org-back-to-heading t)
+                      (when (looking-at org-complex-heading-regexp)
+                        (match-string-no-properties 4)))))))
     (insert (format "** [[zk:%s][%s]]" id title))))
+
 
 ;;;###autoload
 (defun zettelkasten-capture-refile ()
@@ -875,10 +911,25 @@
          (progn
            (setq zettelkasten-capture-state t)
            (zettelkasten-link-zettel-other-window)))
+        ((equal zettelkasten-capture-state 'push-heading)
+         (progn
+           (setq zettelkasten-capture-state t)
+           (zettelkasten-link-zettel-other-window t)))
         ((equal zettelkasten-capture-state 'refile)
          (progn
            (zettelkasten-refile-subtree-other-window)
            (setq zettelkasten-capture-state t)))
+        ((equal zettelkasten-capture-state 'link-heading)
+         (org-with-wide-buffer
+          (org-back-to-heading t)
+          (when (looking-at org-complex-heading-regexp)
+            (let* ((heading (match-string-no-properties 4))
+                   (heading-edit (read-string "Heading: " heading))
+                   (custom-id (zettelkasten-id-get-create)))
+              (save-buffer)
+              (zettelkasten-capture-kill)
+              (other-window 1)
+              (insert (format "[[zk:%s][%s]]" custom-id heading-edit))))))
         (zettelkasten-capture-state
          (progn
            (save-buffer)
