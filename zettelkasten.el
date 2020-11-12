@@ -688,13 +688,15 @@
   ("t" zettelkasten-inbox-trash "Trash" :color red)
 
   ("p" zettelkasten-capture-push "Push Link" :column "Zettelkasten")
+  ("P" (zettelkasten-capture-push t) "Push Heading")
   ("f" zettelkasten-set-context-filter "Set filter")
   ("D" zettelkasten-replace-descriptor "Replace Desc.")
   ("I" zettelkasten-info "Info")
 
   ("c" zettelkasten-zettel-add-collection "Add collection" :column "Zettel")
   ("#" zettelkasten-zettel-add-descriptor "Add descriptor")
-  ("l" zettelkasten-insert-link-at-point "Insert link")
+  ("l" zettelkasten-insert-link-at-point "Link")
+  ("L" zettelkasten-insert-link-heading-at-point "Link zu heading")
   ("i" zettelkasten-zettel-info "Info")
   ("v" zettelkasten-vis-buffer "Visualize")
 
