@@ -103,6 +103,8 @@
 
 (defvar zettelkasten-context-filter '("All" . (lambda (entry) t)))
 
+(defvar zettelkasten-capture-state nil)
+
 ;;;###autoload
 (defun zettelkasten-set-context-filter ()
   (interactive)
@@ -162,21 +164,68 @@
      ("é" . "e") ("ó" . "o"))
    (s-downcase title)))
 
+(defun zettelkasten-elfeed-get-feed-title ()
+  "Get feed title from elfeed buffer."
+  (save-excursion
+    (goto-char (point-min))
+    (search-forward "Feed: ")
+    (replace-regexp-in-string
+     "\n\\'" ""
+     (s-replace "Feed: " "" (thing-at-point 'line t)))))
+
+(defun zettelkasten-elfeed-get-title ()
+  "Get feed title from elfeed buffer."
+  (save-excursion
+    (goto-char (point-min))
+    (search-forward "Title: ")
+    (replace-regexp-in-string
+     "\n\\'" ""
+     (s-replace "Title: " "" (thing-at-point 'line t)))))
+
+(defvar zettelkasten-capture-db
+  (db-make
+   `(db-hash
+     :filename ,(format "/home/job/.emacs.d/var/zettelkasten/zettelkasten-capture-db"))))
+
 ;;;###autoload
 (defun zettelkasten-capture-elfeed ()
   (interactive)
-  (let ((title
-         (progn
-           (goto-char (point-min))
-           (search-forward "Title: ")
-           (s-replace "Title:" "" (thing-at-point 'line)))))
+  (let ((title (zettelkasten-elfeed-get-title))
+        (feed (zettelkasten-elfeed-get-feed-title))
+        (priority (completing-read "Priority: " '("A" "B" "C" "D" "E"))))
+    (db-put (format-time-string "%Y-%m-%d--%H:%M:%S:%3N")
+            `(("feed" . ,feed)
+              ("date" . ,(format-time-string "%Y-%m-%d"))
+              ("priority" . ,priority))
+            zettelkasten-capture-db)
     (mark-whole-buffer)
     (org-capture nil "z")
     (org-edit-headline (s-truncate 51 title))
-    (org-priority)
+    (org-priority (cond ((equal priority "A")
+                         ?A)
+                        ((equal priority "B")
+                         ?B)
+                        ((equal priority "C")
+                         ?C)
+                        ((equal priority "D")
+                         ?D)
+                        ((equal priority "E")
+                         ?E)))
     (org-capture-finalize)
     (elfeed-show-next)))
-  
+
+;;;###autoload
+(defun zettelkasten-elfeed-skip ()
+  (interactive)
+  (let ((feed (zettelkasten-elfeed-get-feed-title)))
+    (db-put (format-time-string "%Y-%m-%d--%H:%M:%S:%3N")
+            `(("feed" . ,feed)
+              ("date" . ,(format-time-string "%Y-%m-%d"))
+              ("priority" . "Z"))
+            zettelkasten-capture-db))
+  (elfeed-show-next))
+
+
 ;;;###autoload
 (defun zettelkasten-new-zettel (&optional title)
   "Capture a Zettel with org-capture"
@@ -847,7 +896,6 @@
   (kill-current-buffer))
 
 
-(defvar zettelkasten-capture-state nil)
 
 (defvar zettelkasten-capture-mode-map
   (let ((map (make-sparse-keymap)))
