@@ -247,7 +247,7 @@
 (defun org-zettelkasten-open (path)
   (when zettelkasten-capture-state
     (kill-current-buffer))
-  (if (<= (length path) 15)
+  (if (<= (length path) 22)
       (let ((zettel-entry
              (car (zettelkasten-cache-entry-ids (list path)))))
         (find-file (plist-get zettel-entry :file)))
