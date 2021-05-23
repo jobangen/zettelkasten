@@ -9,15 +9,17 @@
 (require 'org-el-cache)
 (require 's)
 
-(defun zettelkasten-extract-value (element keyword)
-  (org-element-map element 'keyword
+(defun zettelkasten-extract-value (keyword &optional element)
+  (org-element-map
+      (or element (org-element-parse-buffer 'greater-element))
+      'keyword
     (lambda (kw)
       (if (string= (org-element-property :key kw) keyword)
           (org-element-property :value kw)))
     :first-match t))
 
-(defun zettelkasten-extract-title (filename element)
-  (zettelkasten-extract-value element "TITLE"))
+(defun zettelkasten-extract-title (&optional filename element)
+  (zettelkasten-extract-value "TITLE" (when element)))
 
 (defun zettelkasten-extract-id (filename)
   (let ((fname-chop
@@ -35,7 +37,7 @@
 (defun zettelkasten-extract-collections (filename element)
   (ignore-errors
     (let* ((collection-string
-            (zettelkasten-extract-value element "COLLECTION"))
+            (zettelkasten-extract-value "COLLECTION" element))
            (collection-split
             (split-string collection-string))
            (collection-headings
@@ -66,7 +68,7 @@
 (defun zettelkasten-extract-descriptors (filename element)
   (ignore-errors
     (let* ((descriptor-string
-            (zettelkasten-extract-value element "DESCRIPTOR"))
+            (zettelkasten-extract-value "DESCRIPTOR" element))
            (descriptor-split
             (split-string descriptor-string))
            (descriptor-headings
@@ -109,7 +111,7 @@
 
 (defun zettelkasten-extract-index (filename element)
   (ignore-errors
-    (split-string (zettelkasten-extract-value element "INDEX") "\"\s\"" t "\"")))
+    (split-string (zettelkasten-extract-value "INDEX" element) "\"\s\"" t "\"")))
 
 
 (defun zettelkasten-extract-link-ids (filename el)
@@ -140,23 +142,19 @@
      :file filename
      :title (zettelkasten-extract-title filename element)
      :id (zettelkasten-extract-id filename)
-     :collections (zettelkasten-extract-collections filename element)
+     ;; :collections (zettelkasten-extract-collections filename element)
      :descriptors (zettelkasten-extract-descriptors filename element)
-     :index (zettelkasten-extract-index filename element)
+     ;; :index (zettelkasten-extract-index filename element)
      :links (zettelkasten-extract-link-ids filename element)
      :custom-ids (zettelkasten-extract-custom-ids filename element)
      :todo (zettelkasten-extract-todo-state filename element))))
 
 
-(defun zettelkasten-zettel-p (&optional filename)
-  (s-starts-with?
-   zettelkasten-zettel-directory
-   (or filename (buffer-file-name))))
 
 ;; Update / Initialize the cache
-(add-hook 'after-save-hook (lambda ()
-                             (when (zettelkasten-zettel-p)
-                               (org-el-cache-update zettelkasten-cache))))
+;; (add-hook 'after-save-hook (lambda ()
+;;                              (when (zettelkasten-zettel-p)
+;;                                (org-el-cache-update zettelkasten-cache))))
 
 ;;;###autoload
 (defun zettelkasten-force-update-cache ()
