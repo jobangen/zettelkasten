@@ -329,15 +329,16 @@
 
 (defun org-zettelkasten-open (path)
   (let* ((path (nreverse (split-string path "::")))
-         (target (car path)))
+         (target (car path))
+         (target-label (concat "%" target "%")))
     (when zettelkasten-capture-state
       (kill-current-buffer))
     (find-file (caar (zettelkasten-db-query
                       [:select filename
                        :from nodes
                        :where (= zkid $s1)
-                       :or (= label $s1)]
-                      target)))
+                       :or (like label $s2)]
+                      target target-label)))
     (goto-char (point-min))
     (search-forward target nil t)
     (ignore-error (org-back-to-heading)))
@@ -563,11 +564,14 @@
          (zettel-id (if (s-starts-with? "val:" zettel-target)
                         (s-chop-prefix "val:" zettel-target)
                       (car
-                       (remove nil
-                               (car (zettelkasten-db-query [:select [label zkid]
-                                                            :from nodes
-                                                            :where (= zkid $s1)]
-                                                           zettel-target))))))
+                       (split-string
+                        (car
+                         (remove nil
+                                 (car (zettelkasten-db-query
+                                       [:select [label zkid]
+                                                :from nodes
+                                                :where (= zkid $s1)]
+                                       zettel-target))))))))
          (zettel-title
           (if (s-starts-with? "val:" zettel-target)
               (s-chop-prefix "val:" zettel-target)
