@@ -759,16 +759,21 @@
          (or descriptor
              (completing-read
               "Descriptor: "
-              (-flatten
-               (zettelkasten-db-query [:select :distinct [object]
-                                       :from edges
-                                       :where (= predicate "skos:subject")]))))))
-    (save-excursion
-      (zettelkasten-zettel-ensure-keyword "DESCRIPTOR")
-      (insert (concat " " desc))
-      (zettelkasten-sort-tags)))
-  (unless descriptor
-    (zettelkasten-zettel-add-descriptor)))
+              (append
+               '("#Break#")
+               (-flatten
+                (zettelkasten-db-query
+                 [:select :distinct [object]
+                  :from edges
+                  :where (in predicate ["skos:subject"
+                                        "skos:primarySubject"])])))))))
+    (unless (equal desc "#Break#")
+      (save-excursion
+        (zettelkasten-zettel-ensure-keyword "DESCRIPTOR")
+        (insert (concat " " desc))
+        (zettelkasten-sort-tags)))
+    (unless (or descriptor (equal desc "#Break#"))
+      (zettelkasten-zettel-add-descriptor))))
 
 ;;;###autoload
 (defun zettelkasten-zettel-add-index (&optional index)
