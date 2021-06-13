@@ -983,44 +983,61 @@
    (zettelkasten-db-query [:select :distinct [predicate]
                            :from edges])))
 
+;; https://stackoverflow.com/questions/11912027/emacs-lisp-search-anything-in-a-nested-list
+
+(defun zettelkasten-tree-assoc (key tree)
+  (when (consp tree)
+    (destructuring-bind (x . y) tree
+      (if (equal x key) tree            ;; fct of comparing
+        (or (zettelkasten-tree-assoc key x) (zettelkasten-tree-assoc key y))))))
+
+(defun zettelkasten-predicate-hierachy (predicate)
+  "Returns vector of predicate hierarchy."
+  (vconcat
+   (-flatten
+    (zettelkasten-tree-assoc predicate
+                             zettelkasten-predicates))))
+
 
 (defun zettelkasten-db--nodes-semantic (&optional input-nodes)
   (let* ((predicate (completing-read "Predicate: "
-                                     (zettelkasten-db--values-predicate)))
+                                     (zettelkasten-flat-predicates)))
+         (predicates (zettelkasten-predicate-hierachy predicate))
          (objects-edges (vconcat
                          (-flatten
                           (zettelkasten-db-query [:select :distinct [object]
-                                                  :from edges
-                                                  :where (= predicate $s1)]
-                                                 predicate))))
+                                                          :from edges
+                                                          :where (in predicate $v1)]
+                                                 predicates))))
          (objects
           (zettelkasten-db-query [:select :distinct [title zkid label]
-                                  :from nodes
-                                  :where (in zkid $v1)
-                                  :or (in label $v2)]
+                                          :from nodes
+                                          :where (in zkid $v1)
+                                          :or (in label $v2)]
                                  objects-edges objects-edges))
          (object (cdr (assoc (completing-read "Object: " objects) objects))))
     (-flatten (zettelkasten-db-query [:select :distinct [subject]
-                                      :from edges
-                                      :where (= predicate $s1)
-                                      :and (in object $v2)]
-                                     predicate (vconcat object)))))
+                                              :from edges
+                                              :where (in predicate $v1)
+                                              :and (in object $v2)]
+                                     predicates (vconcat object)))))
 
 
 ;;;###autoload
 (defun zettelkasten-open-semantic ()
   (interactive)
-  (let* ((completions (mapcar
-                       (lambda (node)
-                         (list
-                          (format "%s [%s]" (car node) (file-name-base (cadr node)))
-                          (cadr node)
-                          (caddr node)))
-                       (zettelkasten-db-query
-                        [:select [title filename zkid]
-                         :from nodes
-                         :where (in zkid $v1)]
-                        (vconcat (zettelkasten-db--nodes-semantic)))))
+  (let* ((completions
+          (mapcar
+           (lambda (node)
+             (list
+              (format "%s [%s]" (car node) (file-name-base (cadr node)))
+              (cadr node)
+              (caddr node)))
+           (zettelkasten-db-query
+            [:select [title filename zkid]
+                     :from nodes
+                     :where (in zkid $v1)]
+            (vconcat (zettelkasten-db--nodes-semantic)))))
          (selection (assoc (completing-read "Node: " completions) completions)))
     (find-file (cadr selection))
     (search-forward (caddr selection) nil t)))
@@ -1396,7 +1413,7 @@
           (org-back-to-heading t)
           (when (looking-at org-complex-heading-regexp)
             (let* ((predicate
-                     (completing-read "Predicate: " zettelkasten-predicates))
+                    (completing-read "Predicate: " (zettelkasten-flat-predicates)))
                    (turtle
                     (save-selected-window
                       (other-window 1)
