@@ -154,7 +154,7 @@
 
 (defun zettelkasten--title-to-fname (title)
   (s-replace-all
-   '((" " . "-") ("/". "-")
+   '((" " . "-") ("/" . "-")
      (":" . "") ("." . "") ("," . "") (";" . "")
      ("?" . "") ("!" . "")
      ("\"" . "") ("'" . "")
@@ -164,7 +164,7 @@
      ("ß" . "ss") ("ä" . "ae")
      ("ü" . "ue") ("ö" . "oe")
      ("é" . "e") ("ó" . "o"))
-   (s-downcase title)))
+   (s-left 60 (s-downcase title))))
 
 (defun zettelkasten--get-all-files ()
   (directory-files-recursively zettelkasten-zettel-directory "org$"))
