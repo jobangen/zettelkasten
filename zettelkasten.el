@@ -341,7 +341,9 @@
     (end-of-line)
     (insert zettel-title)
     (setq zettel-capture-filename nil)
-    (zettelkasten-set-type-and-label)
+    (if type
+        (zettelkasten-set-type type)
+      (zettelkasten-set-type))
     (save-buffer)))
 
 
