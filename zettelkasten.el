@@ -299,17 +299,38 @@
     (elfeed-show-next)))
 
 ;;;###autoload
+(defun zettelkasten-elfeed-new-zettel ()
+  (interactive)
+  (let ((title (zettelkasten-elfeed-get-title))
+        (feed (zettelkasten-elfeed-get-feed-title))
+        (capture (buffer-substring-no-properties (point-min) (point-max)))
+        (priority (completing-read "Priority: " '("A" "B" "C" "D" "E"))))
+    (zettelkasten-db-query [:insert :into capture
+                            :values ([nil $s1 $s2 $s3])]
+                           feed (format-time-string "%Y-%m-%d") priority)
+
+    (zettelkasten-new-zettel title "zktb:Article")
+    (search-forward "Inhalt")
+    (next-line)
+    (insert capture)
+    (zettelkasten-zettel-add-descriptor)
+    (save-buffer)
+    (kill-buffer)
+    (elfeed-show-next)))
+
+
+;;;###autoload
 (defun zettelkasten-elfeed-skip ()
   (interactive)
   (let ((feed (zettelkasten-elfeed-get-feed-title)))
     (zettelkasten-db-query [:insert :into capture
-                                        :values ([nil $s1 $s2 $s3])]
-             feed (format-time-string "%Y-%m-%d") "Z"))
+                                    :values ([nil $s1 $s2 $s3])]
+                           feed (format-time-string "%Y-%m-%d") "Z"))
   (elfeed-show-next))
 
 
 ;;;###autoload
-(defun zettelkasten-new-zettel (&optional title)
+(defun zettelkasten-new-zettel (&optional title type)
   "Capture a Zettel with org-capture"
   (interactive)
   (let ((zettel-title
