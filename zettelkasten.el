@@ -396,78 +396,106 @@
     (org-element-map (org-element-parse-buffer) 'keyword (lambda (el) (when (string-match property (org-element-property :key el)) el)))))
 
 (defun zettelkasten-flat-predicates ()
-    ())
+  (delete-dups (-flatten zettelkasten-predicates)))
 
 
 (setq zettelkasten-predicates
-      '(nil "rdf:type"
-            "prov:generatedAtTime" ;; entity by activity at time
-            "prov:used"
-            "prov:wasInformedBy"     ;;activity by activity
-            "prov:wasGeneratedBy"    ;;entity by activity
-            "prov:wasAssociatedWith" ;; activity with agent
-            "prov:specializationOf"  ;;entity -- entity
-            "prov:hadPrimarySource"
-            "prov:wasRevisionOf"
-            "prov:atLocation" ;; ... at Location
-            "time:intervalStartedBy" "time:intervalStarts"
-            "time:intervalFinishedBy" "time:intervalFinishes"
-            "time:after" "time:before"
-            "time:intervalMetBy" "time:intervalMeets"
-            "time:intervalContains" "time:intervalDuring"
-            "time:hours"
-            "skos:member" "skos:memberOf"
-            "skos:subject" "skos:isSubjectOf"
-            "skos:primarySubject" "skos:isPrimarySubjectOf"
-            "skos:broaderTransitive" "skos:broader"
-            "skos:narrowerTransitive" "skos:narrower" "skos:related"
-            "skos:mappingRelation"
-            "skos:closeMatch"
-            "skos:exactMatch"
-            "skos:broadMatch"
-            "skos:narrowMatch"
-            "skos:relatedMatch"
-            "skos:inScheme"
-            "skos:definition"
-            "dct:issued"
-            "dct:creator" "dct:date"
-            "dct:hasPart" "dct:isPartOf"
-            "dct:language"
-            "dct:references" "dct:referencedBy"
+      '(nil ("rdf:type")
+            (("prov:wasInfluencedBy"
+              ("prov:wasAttributedTo" ;; entity to agent
+               ("zktb:wasAuthoredBy")
+               ("zktb:wasEditedBy")
+               ("zktb:introductionBy")
+               ("zktb:wasTranslatedBy")
+               ("zkt:wasAnnotatedBy")
+               ("zkt:wasCoinedBy"))
+              ("prov:wasAssociatedWith" ;; activity with agent
+               ("zkt:hadParticipant"    ;; part of event
+                ("zkt:wasHeldBy")       ;; talk/presentation
+                ("zkt:wasLedBy")        ;; part of, active
+                ("zktm:wasPerformedOn") ;; part of, passive?
+                )
+               ("zkt:hadResponsibleParty")
+               ("zkt:wasOrganizedBy") ;; event
+               ("zkt:applicant")
+               ("zkt:employer")
+               ("zkt:employee")
+               ("zkt:sentBy")
+               ("zkt:sentTo"))
+              ("prov:wasDerivedFrom" ;;entity -- entity
+               ("prov:hadPrimarySource")
+               ("prov:wasQuotedFrom")
+               ("prov:wasRevisionOf"))
+              ("prov:wasGeneratedBy") ;;entity by activity
+              ("prov:wasInvalidatedBy")
+              ("prov:used")
+              ("prov:actedOnBehalfOf")
+              ("prov:wasInformedBy") ;;activity by activity
+              ("prov:wasStartedBy")
+              ("prov:wasEndedBy"))
+             ("prov:alternateOf"
+              ("prov:specializationOf" ;;entity -- entity
+               ))
+             ("prov:hadMember")
+             ("prov:atLocation"
+              ("zkt:startedAtLocation")
+              ("zkt:endedAtLocation")) ;; ... at Location
+             ("prov:generatedAtTime")  ;; entity at instant
+             )
+
+            ;; SKOS
+            (("skos:semanticRelation"
+              ("skos:related"
+               ("skos:relatedMatch"))
+              ("skos:broaderTransitive"
+               ("skos:broader"
+                ("skos:broadMatch"))
+               ("zkt:isTypeOf")) ;;
+              ("skos:narrowerTransitive"
+               ("skos:narrower"
+                ("skos:narrowMatch"))
+               ("zkt:hasType"))
+              ("skos:mappingRelation"
+               ("skos:closeMatch"
+                ("skos:exactMatch")
+                "skos:relatedMatch"
+                "skos:broadMatch"
+                "skos:narrowMatch")))
+             ("skos:subject"
+              ("skos:primarySubject"))
+             ("skos:isSubjectOf"
+              ("skos:isPrimarySubjectOf"))
+             "skos:member" "skos:memberOf"
+             "skos:inScheme"
+             "skos:definition")
+            ("time:intervalStartedBy" "time:intervalStarts"
+             "time:intervalFinishedBy" "time:intervalFinishes"
+             "time:after" "time:before"
+             "time:intervalMetBy" "time:intervalMeets"
+             "time:intervalContains" "time:intervalDuring"
+             "time:hours")
+            ("dct:issued"
+             "dct:creator" "dct:date"
+             "dct:hasPart" "dct:isPartOf"
+             "dct:language"
+             "dct:references" "dct:referencedBy")
             "prov:memberOf"
-            "bibo:cites" "bibo:citedBy"
-            "bibo:reviewOf"
             "foaf:member" "foaf:memberOf"
-            "zktb:introductionBy"
-            "zktb:wasAuthoredBy"
-            "zkt:wasAnnotatedBy"
-            "zktb:wasEditedBy"
+
+
             "zktb:wasDedicatedTo"
-            "zkt:wasCoinedBy"
-            "zkt:wasHeldBy"
-            "zkt:wasOrganizedBy"
-            "zktb:wasTranslatedBy"
-            "zkt:hadParticipant"        ;activity -- person
-            "zkt:wasLedBy"              ;activity by agent
-            "zkt:hasType"
-            "zkt:isTypeOf"
-            "zkt:startedAtLocation"
-            "zkt:endedAtLocation"
+
             "zktm:atBodilyLocation"
             "zktm:sensation"
             "zktm:sensationQualifiedBy"
-            "zktm:dosage"
-            "zktm:wasPerformedOn"
-            "zkt:applicant"
-            "zkt:employer"
-            "zkt:sentBy"
-            "zkt:sentTo"))
+            "zktm:dosage"))
 
 (setq zettelkasten-classes
       '("owl:Class"
         ;;
         ("prov:Activity"
          ("zkt:Project"
+          "zkt:PhD"
           "zkt:Seminar" "zkt:Sitzung"
           "zkt:MusicEvent"
           "zkt:Appointment"
@@ -492,14 +520,18 @@
            ("zktm:Vaccine"))
           ("dct:BibliographicResource"
            ("zktb:Article"
-            "zktb:Book" "zktb:InBook"
-            "zktb:Collection" "zktb:Lexikon"
-            "zktb:InCollection"
-            "zktb:Journal"
-            "zktb:ClassicalText"))
+            ("zktb:Review"))
+           ("zktb:Book")
+           ("zktb:InBook")
+           ("zktb:Collection")
+           ("zktb:Lexikon")
+           ("zktb:InCollection")
+           ("zktb:Journal")
+           ("zktb:ClassicalText"))
           "zkt:DocumentPart"
           "zkt:Draft"
           "zkt:SlideShow"
+          "zkt:Contract"
           "zkt:Excerpt"
           "zkt:Quote"
           "zkt:Note"))
@@ -567,7 +599,7 @@
   (interactive)
   (let* ((zk-id (org-entry-get nil "CUSTOM_ID"))
          (zettel-target link-target)
-         (predicate (completing-read "Predicate: " zettelkasten-predicates))
+         (predicate (completing-read "Predicate: " (zettelkasten-flat-predicates)))
          (turtle (s-starts-with? ":TURTLE" (thing-at-point 'line t)))
          (zettel
           (save-excursion
@@ -615,7 +647,7 @@
 
 
 (defun zettelkasten-heading-set-relation-to-context ()
-  (let* ((predicate (completing-read "Predicate: " zettelkasten-predicates
+  (let* ((predicate (completing-read "Predicate: " (zettelkasten-flat-predicates)
                                      nil nil "dct:isPartOf"))
          (target (completing-read "Target:"
                                   (zettelkasten-db-query [:select zkid
