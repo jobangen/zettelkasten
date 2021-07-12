@@ -127,11 +127,6 @@
       (when (string= (org-element-property :key property) "CUSTOM_ID")
         (org-element-property :value property)))))
 
-(defun zettelkasten-extract-todo-state (filename el)
-  (when (org-element-map el 'headline
-          (lambda (headline)
-            (org-element-property :todo-type headline)))
-    t))
 
 
 (def-org-el-cache
