@@ -39,6 +39,19 @@
   :group 'zettelkasten
   :type 'string)
 
+(defcustom zettelkasten-db-update-method 'when-idle
+  "Method to update the zettelkasten database.
+Options: `immediate' and `when-idle'."
+  :group 'zettelkasten)
+
+(defcustom zettelkasten-db-idle-seconds 2
+  "Number of seconds to wait until database update is triggered."
+  :type 'integer
+  :group 'zettelkasten)
+
+(defvar zettelkasten-db-dirty nil
+  "Zettel that are to be updated. List of filenames.")
+
 (defvar zettelkasten-db--connection (make-hash-table :test #'equal)
   "Database connection to Zettelkasten database.")
 
@@ -74,7 +87,7 @@
             (filename :not-null)
             (zkid :not-null :unique)
             (type :not-null)
-            rdftype label title])
+            rdftype label title todo])
     (edges [(id integer :primary-key)
             filename subject predicate object])))
 
@@ -446,7 +459,10 @@
          (f-rdftype (zettelkasten-extract-value "RDF_TYPE" element))
          (f-label (zettelkasten-extract-value "ZK_LABEL" element))
          (f-title (zettelkasten--extract-title filename element))
-         (vfile (list (vector nil filename f-zkid "file" f-rdftype f-label f-title)))
+         (f-todo (zettelkasten-extract-todo-state element))
+         (vfile
+          (list
+           (vector nil filename f-zkid "file" f-rdftype f-label f-title f-todo)))
          (vhead (org-element-map element 'headline
                   (lambda (x)
                     (let ((h-zkid (org-element-property :CUSTOM_ID x)))
@@ -457,14 +473,16 @@
                                 "heading"
                                 (org-element-property :RDF_TYPE x)
                                 (org-element-property :ZK_LABEL x)
-                                (org-element-property :raw-value x)))))))
+                                (org-element-property :raw-value x)
+                                nil))))))
          (vcomp (append vfile vhead)))
     (zettelkasten-db-query [:delete-from nodes
-                            :where (= filename $s1)]
+                                         :where (= filename $s1)]
                            filename)
     (zettelkasten-db-query [:insert :into nodes
-                            :values $v1]
-                           vcomp)))
+                                    :values $v1]
+                           vcomp)
+    vcomp))
 
 (defun zettelkasten-db--update-edges (&optional fname el)
   (let* ((filename (or fname (buffer-file-name)))
@@ -537,15 +555,15 @@
     links))
 
 ;; TODO: improve support for option filename
-(defun zettelkasten-db-update-zettel (&optional filename)
+(defun zettelkasten-db-update-zettel (&optional filename hash)
   (let* ((fname (file-truename (or filename (buffer-file-name))))
-         (curr-hash (secure-hash 'sha1 (current-buffer)))
+         (curr-hash (or hash (secure-hash 'sha1 (current-buffer))))
          (db-hash (caar (zettelkasten-db-query [:select hash :from meta
                                                 :where (= filename $s1)]
                                                fname))))
     (unless (string= curr-hash db-hash)
       (let ((element (org-element-parse-buffer)))
-        (zettelkasten-db--update-files fname element)
+        ;; (zettelkasten-db--update-files fname element)
         ;; (zettelkasten-db--update-id fname element)
         ;; (zettelkasten-db--update-link fname element)
         ;; (zettelkasten-db--update-index fname element)
@@ -555,6 +573,32 @@
         (zettelkasten-db--update-nodes fname element)
         (zettelkasten-db--update-edges fname element)))))
 
+(defun zettelkasten-db--mark-dirty ()
+  (add-to-list 'zettelkasten-db-dirty (buffer-file-name)))
+
+(defun zettelkasten-db--update-on-timer ()
+  (let ((len (length zettelkasten-db-dirty)))
+    (when zettelkasten-db-dirty
+      (dolist (filename zettelkasten-db-dirty)
+        (with-temp-buffer
+          (condition-case nil
+              (progn
+                (insert-file-contents filename)
+                (org-mode)              ;; necessary for parsing of todo-state
+                (zettelkasten-db-update-zettel filename))
+            (error (message (format "Zettelkasten: File '%s' missing" filename))))
+          (pop zettelkasten-db-dirty)))
+      (message "Zettelkasten: Updated %s zettel." len))))
+
+(defun zettelkasten-db-update ()
+  "Update database"
+  (pcase zettelkasten-db-update-method
+    ('immediate
+     (zettelkasten-db-update-zettel))
+    ('when-idle
+     (zettelkasten-db--mark-dirty))
+    (_
+     (user-error "Invalid `zettelkasten-db-update-method'"))))
 
 (defun zettelkasten-zettel-p (&optional filename)
   (s-starts-with?
@@ -563,18 +607,25 @@
 
 (add-hook 'after-save-hook (lambda ()
                              (when (zettelkasten-zettel-p)
-                               (zettelkasten-db-update-zettel))))
+                               (zettelkasten-db-update))))
+
+(when (eq zettelkasten-db-update-method 'when-idle)
+  (run-with-idle-timer
+   zettelkasten-db-idle-seconds t #'zettelkasten-db--update-on-timer))
+
 
 (defun zettelkasten-db-process ()
   (interactive)
   (let* ((files (zettelkasten--get-all-files)))
-    (dolist (file files)
-      (with-temp-buffer
-        (message file)
-        (insert-file-contents file)
-        (zettelkasten-db-update-zettel file)))))
+    (setq zettelkasten-db-dirty (append zettelkasten-db-dirty files))))
 
 ;;; Helper
+(defun zettelkasten-extract-todo-state (el)
+  (when (org-element-map el 'headline
+          (lambda (headline)
+            (org-element-property :todo-type headline)))
+    t))
+
 (defun zettelkasten-db--title-filename (&optional filenames)
   "Returns list of lists: title, filename, zkid only for files."
   (if filenames
