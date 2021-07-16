@@ -1674,10 +1674,11 @@ Turning on this mode runs the normal hook `zettelkasten-capture-mode-hook'."
   (unless (search-forward "Today's Tasks" nil t)
     (progn
       (goto-char (point-max))
-      (insert "** Today's Tasks\n")
+      (insert "** Today's Tasks\n:PROPERTIES:\n:CATEGORY: pers\n:END:\n")
       (insert (format-time-string "<%Y-%m-%d>\n"))))
   (job/org-add-tags-today)
   (org-todo "TODO")
+  (org-priority ?A)
   (org-narrow-to-subtree)
   (goto-char (point-max))
   ;; old file
@@ -1691,6 +1692,7 @@ Turning on this mode runs the normal hook `zettelkasten-capture-mode-hook'."
       (other-window 1)
       (backward-char 4)
       (insert ">")))
+  (org-todo "DONE")
   (widen)
   (other-window 1)
   (widen))
