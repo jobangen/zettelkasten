@@ -1227,6 +1227,7 @@
   ("R" zettelkasten-open-zettel-random "Open random")
   ("ä" zettelkasten-open-zettel-collection "Open collection")
   ("d" zettelkasten-open-zettel-descriptor "Open descriptor")
+  ("s" zettelkasten-open-semantic "Open semantic")
   ("jw" zettelkasten-journal-weekly-file "Weekly file")
 
   ("C-r" zettelkasten-inbox-process (format "Process inbox [%s]" 5) :color red :column "Inbox")
@@ -1256,10 +1257,6 @@
   ("hf" zettelkasten-headline-set-followup "Set followup")
   ("hr" zettelkasten-headline-reset "Reset")
 
-  ("sl" zetteldeft-avy-link-search "search link" :column "Search")
-  ("sf" zetteldeft-search-current-id "seach current file")
-  ("sd" zetteldeft-deft-new-search "search deft ")
-  ("st" zetteldeft-avy-tag-search "search tag")
   ("n" org-noter "noter" :column "Other")
   ("u" zettelkasten-update-org-agenda-files "Update agenda")
   ("q" nil "Quit"))
