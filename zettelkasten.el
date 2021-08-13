@@ -164,7 +164,7 @@
      ("ß" . "ss") ("ä" . "ae")
      ("ü" . "ue") ("ö" . "oe")
      ("é" . "e") ("ó" . "o"))
-   (s-left 60 (s-downcase title))))
+   (s-left 59 (s-downcase title))))
 
 (defun zettelkasten--get-all-files ()
   (directory-files-recursively zettelkasten-zettel-directory "org$"))
