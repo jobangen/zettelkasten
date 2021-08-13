@@ -695,7 +695,7 @@
               (completing-read
                "ID: " `(,(zettelkasten-extract-value "ZK_LABEL")
                         ,(concat "zk-" (s-chop-suffix ".org" (buffer-name)))
-                        ,(s-chop-suffix ".org" (buffer-name))
+                        ,(file-name-base)
                         ,(concat "zk-" (s-left 15 (s-replace "T" "-" (org-id-new)))))))
              (editid (read-string "Edit ID: " myid)))
         (setq zk-id editid))
