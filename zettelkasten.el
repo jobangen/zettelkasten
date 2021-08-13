@@ -610,18 +610,27 @@
 
 
 ;;;###autoload
-(defun zettelkasten-insert-link-at-point (&optional link-target)
+(defun zettelkasten-insert-link-at-point (&optional link-predicate link-target)
   (interactive)
   (let* ((zk-id (org-entry-get nil "CUSTOM_ID"))
          (zettel-target link-target)
-         (predicate (completing-read "Predicate: " (zettelkasten-flat-predicates)))
+         (predicate (or link-predicate
+                        (completing-read "Predicate: "
+                                         (zettelkasten-flat-predicates))))
          (turtle (s-starts-with? ":TURTLE" (thing-at-point 'line t)))
          (zettel
           (save-excursion
             (unless link-target
               (ivy-read "Link Zettel: "
-                        (zettelkasten-db-query [:select [title zkid]
-                                                :from nodes])
+                        (mapcar
+                         (lambda (node)
+                           (list
+                            (format "%s [%s]"
+                                    (car node)
+                                    (file-name-base (cadr node)))
+                            (caddr node)))
+                         (zettelkasten-db-query [:select [title filename zkid]
+                                                 :from nodes]))
                         :action
                         (lambda (selection)
                           (if (listp selection)
