@@ -406,13 +406,13 @@
                ("zkt:wasAnnotatedBy")
                ("zkt:wasCoinedBy"))
               ("prov:wasAssociatedWith" ;; activity with agent
-               ("zkt:hadParticipant"    ;; part of event
-                ("zkt:wasHeldBy")       ;; talk/presentation
+               ("zkt:hadParticipant"    ;; event -- agent
+                ("zkt:wasPerformedBy")
                 ("zkt:wasLedBy")        ;; part of, active
                 ("zktm:wasPerformedOn") ;; part of, passive?
                 )
-               ("zkt:hadResponsibleParty")
-               ("zkt:wasOrganizedBy") ;; event
+               ("zkt:hadResponsibleParty") ;; activity -- agent
+               ("zkt:wasOrganizedBy")      ;; event -- agent
                ("zkt:applicant")
                ("zkt:employer")
                ("zkt:employee")
@@ -424,7 +424,8 @@
                ("prov:wasRevisionOf"))
               ("prov:wasGeneratedBy") ;;entity by activity
               ("prov:wasInvalidatedBy")
-              ("prov:used")
+              ("prov:used"
+               ("zkt:perceptionOf"))
               ("prov:actedOnBehalfOf")
               ("prov:wasInformedBy") ;;activity by activity
               ("prov:wasStartedBy")
@@ -437,7 +438,9 @@
               ("zkt:startedAtLocation")
               ("zkt:endedAtLocation")) ;; ... at Location
              ("prov:generatedAtTime")  ;; entity at instant
-             )
+             ("prov:qualifiedInfluence"
+              ("prov:qualifiedUsage"
+               ("zkt:qualifiedPerception"))))
 
             ;; SKOS
             (("skos:semanticRelation"
@@ -469,7 +472,8 @@
              "time:after" "time:before"
              "time:intervalMetBy" "time:intervalMeets"
              "time:intervalContains" "time:intervalDuring"
-             "time:hours")
+             "time:hours"
+             "time:days")
             ("dct:issued"
              "dct:creator" "dct:date"
              "dct:hasPart" "dct:isPartOf"
@@ -482,55 +486,65 @@
             "zktb:wasDedicatedTo"
 
             "zktm:atBodilyLocation"
-            "zktm:sensation"
-            "zktm:sensationQualifiedBy"
-            "zktm:dosage"))
+            "zkt:hadQualia"
+            "zktm:dosage"
+            "prov:entity"))
 
 (setq zettelkasten-classes
       '("owl:Class"
-        ;;
+        ;; Event, Process, Relationship
         ("prov:Activity"
-         ("zkt:Project"
-          "zkt:PhD"
-          "zkt:Seminar" "zkt:Sitzung"
-          "zkt:MusicEvent"
-          "zkt:Appointment"
-          "zkt:Employment"
-          "zkt:ApplicationProcedure"
-          "zkt:Übungen"
-          "zkt:Vortrag"
-          ("zktm:MedicalActivity"
-           ("zktm:Vaccination"
-            "zktm:Examination"
-            "zktm:Treatment"
-            "zktm:SelfPerception"))
+         ("zkt:Event"
+          ("zkt:MusicEvent")
+          ("zkt:Appointment")
+          ("zkt:Übungen")
+          ("zkt:Vortrag")
+          ("zkt:Sitzung")
+          ("zkt:Seminar")
+          ("zkt:Stay")
+          ("zkt:Experience"))
+
+         ("zkt:Process"
+          ("zkt:ApplicationProcedure")
+          ("zkt:Project"
+           ("zkt:PhD")))
+         ("zkt:Relationship"
+          ("zkt:ContractualRelationship"
+           ("zkt:Employment")))
+
+         (("zktm:HealthcareActivity"
+           ("zktm:Treatment"
+            ("zktm:Vaccination"))
+           ("zktm:Diagnostics"))
           ("zkt:SpatialMovement"
            ("zkt:Wandern"
             "zkt:Laufen"))))
         ;;
         ("prov:Entity"
          ("skos:Concept prov:Entity")
-         "prov:Collection"
+         ("prov:Collection")
          ("prov:Plan"
-          ("zkt:Rezept"
-           ("zktm:Vaccine"))
-          ("dct:BibliographicResource"
-           ("zktb:Article"
-            ("zktb:Review"))
-           ("zktb:Book")
-           ("zktb:InBook")
-           ("zktb:Collection")
-           ("zktb:Lexikon")
-           ("zktb:InCollection")
-           ("zktb:Journal")
-           ("zktb:ClassicalText"))
-          "zkt:DocumentPart"
-          "zkt:Draft"
-          "zkt:SlideShow"
-          "zkt:Contract"
-          "zkt:Excerpt"
-          "zkt:Quote"
-          "zkt:Note"))
+          ("zkt:Rezept")
+          ("zktm:Vaccine"))
+         ("dct:BibliographicResource"
+          ("zktb:Article"
+           ("zktb:Review"))
+          ("zktb:Book")
+          ("zktb:InBook")
+          ("zktb:Collection")
+          ("zktb:Lexikon")
+          ("zktb:InCollection")
+          ("zktb:Journal")
+          ("zktb:ClassicalText")
+          ("zktb:Report"))
+         ("zkt:DocumentPart"
+          ("zkt:Quote"))
+         ("zkt:Draft")
+         ("zkt:SlideShow")
+         ("zkt:Contract")
+         ("zkt:Excerpt")
+         ("zkt:Mitschrift")
+         ("zkt:Note"))
         ;;
         ("prov:Agent"
          ("prov:Person foaf:Person"
@@ -538,14 +552,19 @@
         ;;
         ("prov:Location"
          ("prov:Location geo:Point"
-          ("zkt:TrainStation")))
+          ("zkt:TrainStation")
+          ("zkt:Airport")))
         "time:ProperInterval"
         "dct:Collection"
         "dct:LinguisticSystem" "dct:Software" "dct:PhysicalResource" "dct:Location"
         "skos:ConceptScheme"
         "skos:Concept"
         "skos:Collection"
-        "foaf:Group"))
+        "foaf:Group"
+        ("prov:Influence"
+         ("prov:EntityInfluence"
+          ("prov:Usage")
+          ("zkt:Perception")))))
 
 
 ;;;###autoload
