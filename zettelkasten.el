@@ -1024,28 +1024,64 @@
 
 
 (defun zettelkasten-db--nodes-semantic (&optional input-nodes)
-  (let* ((predicate (completing-read "Predicate: "
-                                     (zettelkasten-flat-predicates)))
-         (predicates (zettelkasten-predicate-hierachy predicate))
-         (objects-edges (vconcat
-                         (-flatten
-                          (zettelkasten-db-query [:select :distinct [object]
-                                                          :from edges
-                                                          :where (in predicate $v1)]
-                                                 predicates))))
-         (objects
-          (zettelkasten-db-query [:select :distinct [title zkid label]
-                                          :from nodes
-                                          :where (in zkid $v1)
-                                          :or (in label $v2)]
-                                 objects-edges objects-edges))
-         (object (cdr (assoc (completing-read "Object: " objects) objects))))
-    (-flatten (zettelkasten-db-query [:select :distinct [subject]
-                                              :from edges
-                                              :where (in predicate $v1)
-                                              :and (in object $v2)]
-                                     predicates (vconcat object)))))
-
+  (let* ((output-nodes input-nodes)
+         ;; select predicate
+         (predicate (completing-read "Predicate: "
+                                     (if input-nodes
+                                         ;; replace with db query
+                                         (append
+                                          (zettelkasten-db-query
+                                           [:select :distinct [predicate]
+                                            :from edges
+                                            :where (in subject $v1)]
+                                           input-nodes)
+                                          '("##Break"))
+                                       (zettelkasten-flat-predicates)))))
+    (unless (equal predicate "##Break")
+      (let* ;; lookup predicate hierarchy
+          ((predicates (zettelkasten-predicate-hierachy predicate))
+           ;; get object label or id with selected predicate
+           (objects-edges (vconcat
+                           (-flatten
+                            (if input-nodes
+                                (zettelkasten-db-query [:select :distinct [object]
+                                                        :from edges
+                                                        :where (in subject $v1)
+                                                        :and (in predicate $v2)]
+                                                       input-nodes predicates )
+                              (zettelkasten-db-query [:select :distinct [object]
+                                                      :from edges
+                                                      :where (in predicate $v1)]
+                                                     predicates)))))
+           ;; match ids and label and return nodes
+           (objects
+            (zettelkasten-db-query [:select :distinct [title zkid label]
+                                    :from nodes
+                                    :where (in zkid $v1)
+                                    :or (in label $v2)]
+                                   objects-edges objects-edges))
+           ;; select object
+           (object (cdr (assoc (completing-read "Object: " objects) objects)))
+           ;; lookup all subjects that link to object with predicate
+           (subjects (-flatten (if input-nodes
+                                   (zettelkasten-db-query
+                                    [:select :distinct [subject]
+                                     :from edges
+                                     :where (in subject $v1)
+                                     :and (in predicate $v2)
+                                     :and (in object $v3)]
+                                    input-nodes predicates (vconcat object))
+                                 (zettelkasten-db-query
+                                  [:select :distinct [subject]
+                                   :from edges
+                                   :where (in predicate $v1)
+                                   :and (in object $v2)]
+                                  predicates (vconcat object))))))
+        (setq output-nodes subjects)))
+    (if (or (equal predicate "##Break")
+            (< (length output-nodes) 11))
+        output-nodes
+      (zettelkasten-db--nodes-semantic (vconcat output-nodes)))))
 
 ;;;###autoload
 (defun zettelkasten-open-semantic ()
@@ -1059,8 +1095,8 @@
               (caddr node)))
            (zettelkasten-db-query
             [:select [title filename zkid]
-                     :from nodes
-                     :where (in zkid $v1)]
+             :from nodes
+             :where (in zkid $v1)]
             (vconcat (zettelkasten-db--nodes-semantic)))))
          (selection (assoc (completing-read "Node: " completions) completions)))
     (find-file (cadr selection))
