@@ -272,29 +272,25 @@
                       )))
     (goto-char (point-min))))
 
+;; obsolete
 ;;;###autoload
 (defun zettelkasten-capture-elfeed ()
   (interactive)
   (let ((title (zettelkasten-elfeed-get-title))
         (feed (zettelkasten-elfeed-get-feed-title))
-        (priority (completing-read "Priority: " '("A" "B" "C" "D" "E"))))
+        (priority (completing-read "Priority: " '("A" "B" "C" "D" "E") nil t)))
     (zettelkasten-db-query [:insert :into capture
-                                    :values ([nil $s1 $s2 $s3])]
+                            :values ([nil $s1 $s2 $s3])]
                            feed (format-time-string "%Y-%m-%d") priority)
     (mark-whole-buffer)
     (org-capture nil "z")
     (org-edit-headline (s-truncate 51 title))
-    (org-priority (cond ((equal priority "A")
-                         ?A)
-                        ((equal priority "B")
-                         ?B)
-                        ((equal priority "C")
-                         ?C)
-                        ((equal priority "D")
-                         ?D)
-                        ((equal priority "E")
-                         ?E)))
-    (org-set-property "RDF_TYPE" "bibo:Article")
+    (org-priority (pcase priority
+                    ('"A" ?A)
+                    ('"B" ?B)
+                    ('"C" ?C)
+                    ('"D" ?D)))
+    (org-set-property "RDF_TYPE" "zktb:Article")
     (org-capture-finalize)
     (elfeed-show-next)))
 
