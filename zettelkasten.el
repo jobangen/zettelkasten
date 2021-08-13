@@ -1160,14 +1160,11 @@
                   (string-match "/home/job/Dropbox/db/zk/zettel/jr/.*" filename)))
             (org-agenda-files)))
           (zettelkasten-agenda-files
-           (mapcar
-            (lambda (arg)
-              (plist-get arg :file))
-            (org-el-cache-select
-             zettelkasten-cache
-             (lambda (filename entry)
-               (and (plist-get entry :todo)
-                    (not (member "journal" (plist-get entry :collections)))))))))
+           (-flatten (zettelkasten-db-query
+                      [:select [filename]
+                       :from nodes
+                       :where (= todo 't)
+                       :and (not (like filename '"%/jr/%"))]))))
       (setq org-agenda-files (append not-zettelkasten-agenda-files
                                      zettelkasten-agenda-files)))))
 
