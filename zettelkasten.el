@@ -921,6 +921,7 @@
              (search-forward (caddr selection) nil t)))
        (zettelkasten-new-zettel selection)))))
 
+;; TODO create defcustom list with rules for directories
 (defun zettelkasten--filename-to-id (filename)
   "Extract id from FILENAME. Return string."
   (let* ((fname-chop
