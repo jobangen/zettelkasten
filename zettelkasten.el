@@ -1150,9 +1150,6 @@
       (setq org-agenda-files (append not-zettelkasten-agenda-files
                                      zettelkasten-agenda-files)))))
 
-
-
-
 ;;;###autoload
 (defun zettelkasten-rename-file ()
   (interactive)
