@@ -117,7 +117,7 @@
 
 ;; Creation and (re)naming of zettel
 (push '("z" "Zettel append" plain
-        (file+headline zettelkasten-inbox-file "Refile")
+        (file+headline zettelkasten-inbox-file "Inbox")
         "\n** TODO :refile:zkt:
 :PROPERTIES:
 :CATEGORY: zkt
@@ -128,12 +128,21 @@
 
 (push '("Z" "Zettel" plain
         (file (lambda ()
-                (let ((name (or zettel-capture-filename (read-string "Name: "))))
+                (let ((name (or zettel-capture-filename (read-string "Name: ")))
+                      (time-string (format-time-string "%Y-%m-%d-%H%M")))
+                  (while (zettelkasten-db-query [:select [zkid]
+                                                 :from nodes
+                                                 :where (= zkid $s1)]
+                                                time-string)
+                    (let ((base-string (s-left 11 time-string))
+                          (hmin (+ 1 (string-to-number (s-right 4 time-string)))))
+                      (setq time-string (concat base-string
+                                                (number-to-string hmin)))))
+
+
                   (expand-file-name
                    (concat zettelkasten-zettel-directory
-                           (format-time-string "%Y-%m-%d-%H%M-")
-                           name
-                           ".org")))))
+                           time-string "-" name ".org")))))
         (function zettelkasten-zettel-template)
         :immediate-finish t
         :jump-to-captured t)
@@ -163,8 +172,10 @@
      ("{" . "") ("}" . "")
      ("ß" . "ss") ("ä" . "ae")
      ("ü" . "ue") ("ö" . "oe")
-     ("é" . "e") ("ó" . "o"))
-   (s-left 59 (s-downcase title))))
+     ("é" . "e") ("ó" . "o")
+     ("–" . "")
+     )
+   (s-chop-suffix "-" (s-left 59 (s-downcase title)))))
 
 (defun zettelkasten--get-all-files ()
   (directory-files-recursively zettelkasten-zettel-directory "org$"))
@@ -289,7 +300,9 @@
                     ('"A" ?A)
                     ('"B" ?B)
                     ('"C" ?C)
-                    ('"D" ?D)))
+                    ('"D" ?D)
+                    ('"E" ?E)
+                    ))
     (org-set-property "RDF_TYPE" "zktb:Article")
     (org-capture-finalize)
     (elfeed-show-next)))
@@ -349,15 +362,16 @@
 (defun org-zettelkasten-open (path)
   (let* ((path (nreverse (split-string path "::")))
          (target (car path))
-         (target-label (concat "%" target "%")))
+         (target-label (concat "%" target " %")))
     (when zettelkasten-capture-state
       (kill-current-buffer))
     (find-file (caar (zettelkasten-db-query
                       [:select filename
                        :from nodes
                        :where (= zkid $s1)
-                       :or (like label $s2)]
-                      target target-label)))
+                       :or (= label $s2)
+                       :or (like label $s3)] ;; multiple labels?
+                      target target target-label)))
     (goto-char (point-min))
     (search-forward target nil t)
     (ignore-error (org-back-to-heading)))
@@ -398,26 +412,43 @@
 (setq zettelkasten-predicates
       '(nil ("rdf:type")
             (("prov:wasInfluencedBy"
-              ("prov:wasAttributedTo" ;; entity to agent
+              ("zkt:symbolizes")        ;word-concept
+              ("zkt:wasSymbolizedBy")
+              ("zkt:refersTo")          ;concept-thing
+              ("zkt:wasReferedToBy")    ;concept-thing
+              ("zkt:standsFor")         ;word-thing
+              ("prov:wasAttributedTo"   ;; entity to agent
                ("zktb:wasAuthoredBy")
                ("zktb:wasEditedBy")
                ("zktb:introductionBy")
                ("zktb:wasTranslatedBy")
                ("zkt:wasAnnotatedBy")
                ("zkt:wasCoinedBy"))
+
               ("prov:wasAssociatedWith" ;; activity with agent
                ("zkt:hadParticipant"    ;; event -- agent
-                ("zkt:wasPerformedBy")
-                ("zkt:wasLedBy")        ;; part of, active
-                ("zktm:wasPerformedOn") ;; part of, passive?
-                )
+                ("zkt:wasPerformedBy"   ;; part of, active
+                 ("zkt:wasLedBy"))
+                ("zkt:wasPerformedWith" ;; part of, passive?
+                 ("zktm:wasPerformedOn")))
+               ("zkt:hadNonParticipant"
+                ("zkt:wasOrganizedBy")
+                ("zkt:wasDirectedAt"))
+               ("zkt:hadActiveAssociate"
+                ("zkt:wasPerformedBy" ;; part of, active
+                 ("zkt:wasLedBy"))
+                ("zkt:wasOrganizedBy"))
+               ("zkt:hadPassiveAssociate"
+                ("zkt:wasPerformedWith" ;; part of, passive?
+                 ("zktm:wasPerformedOn"))
+                ("zkt:wasDirectedAt"))
                ("zkt:hadResponsibleParty") ;; activity -- agent
-               ("zkt:wasOrganizedBy")      ;; event -- agent
                ("zkt:applicant")
                ("zkt:employer")
                ("zkt:employee")
                ("zkt:sentBy")
                ("zkt:sentTo"))
+
               ("prov:wasDerivedFrom" ;;entity -- entity
                ("prov:hadPrimarySource")
                ("prov:wasQuotedFrom")
@@ -434,16 +465,15 @@
               ("prov:specializationOf" ;;entity -- entity
                ))
              ("prov:hadMember")
+             ("prov:memberOf")
              ("prov:atLocation"
               ("zkt:startedAtLocation")
               ("zkt:endedAtLocation")) ;; ... at Location
              ("prov:generatedAtTime")  ;; entity at instant
              ("prov:qualifiedInfluence"
               ("prov:qualifiedUsage"
-               ("zkt:qualifiedPerception"))))
-
-            ;; SKOS
-            (("skos:semanticRelation"
+               ("zkt:qualifiedPerception")))
+             ("skos:semanticRelation"
               ("skos:related"
                ("skos:relatedMatch"))
               ("skos:broaderTransitive"
@@ -457,54 +487,128 @@
               ("skos:mappingRelation"
                ("skos:closeMatch"
                 ("skos:exactMatch")
-                "skos:relatedMatch"
-                "skos:broadMatch"
-                "skos:narrowMatch")))
+                ("skos:relatedMatch")
+                ("skos:broadMatch")
+                ("skos:narrowMatch")))))
+
+            ;; SKOS
+            (
              ("skos:subject"
               ("skos:primarySubject"))
              ("skos:isSubjectOf"
               ("skos:isPrimarySubjectOf"))
-             "skos:member" "skos:memberOf"
-             "skos:inScheme"
-             "skos:definition")
+             ("skos:member")
+             ("skos:memberOf")
+             ("skos:inScheme")
+             ("skos:definition"))
             ("time:intervalStartedBy" "time:intervalStarts"
              "time:intervalFinishedBy" "time:intervalFinishes"
              "time:after" "time:before"
              "time:intervalMetBy" "time:intervalMeets"
              "time:intervalContains" "time:intervalDuring"
+             "time:minutes"
              "time:hours"
-             "time:days")
-            ("dct:issued"
-             "dct:creator" "dct:date"
-             "dct:hasPart" "dct:isPartOf"
-             "dct:language"
-             "dct:references" "dct:referencedBy")
-            "prov:memberOf"
-            "foaf:member" "foaf:memberOf"
+             "time:days"
+             "time:hasDateTimeDescription")
+            (("dct:issued")
+             ("dct:date")
+             ("dct:hasPart")
+             ("dct:isPartOf")
+             ("dct:language"))
+            "zkt:addressee" ;; addressee of entity, letter etc
+            ;; descriptive meta data
+            ("zkt:distanceKM")
+            ("zkt:wasEvidencedBy")      ;; Concept -- ...
+            ("zkt:result")
+            ("foaf:member") ("foaf:memberOf")
 
 
-            "zktb:wasDedicatedTo"
+            ("zktb:wasDedicatedTo")
 
-            "zktm:atBodilyLocation"
-            "zkt:hadQualia"
-            "zktm:dosage"
-            "prov:entity"))
+            ("zktm:atBodilyLocation")
+            ("zkt:hadQualia")
+            ("zkt:dosage")
+            ("prov:entity")))
+
+(setq zettelkasten-predicate-domain-range
+      '(("zkt:symbolizes" ("zkt:LinguisticForm" ("skos:Concept")))
+        ("zkt:wasSymbolizedBy" ("skos:Concept" ("zkt:LinguisticForm")))
+        ("zkt:refersTo" ("skos:Concept" ("owl:Class")))
+        ("zkt:wasReferedToBy" ("owl:Class" ("skos:Concept")))
+        ("zkt:standsFor" ("zkt:LinguisticForm" ("owl:Class")))
+        ("prov:wasAttributedTo" ("prov:Entity" ("prov:Agent")))
+        ("zktb:wasAuthoredBy" ("prov:Entity" ("prov:Agent")))
+        ("zktb:wasEditedBy" ("prov:Entity" ("prov:Agent")))
+        ("zkt:wasCoinedBy" ("prov:Entity" ("prov:Agent")))
+        ;;
+        ("prov:wasAssociatedWith" ("prov:Activity" ("prov:Agent")))
+        ;; 
+        ("zkt:hadParticipant" ("zkt:Event" ("prov:Agent")))
+        ("zkt:hadNonParticipant" ("zkt:Event" ("prov:Agent")))
+        ("zkt:hadActiveAssociate" ("zkt:Event" ("prov:Agent")))
+        ("zkt:hadPassiveAssociate" ("zkt:Event" ("prov:Agent")))
+        ;; 
+        ("zkt:wasPerformedBy" ("zkt:Event" ("prov:Agent")))
+        ("zkt:wasPerformedWith" ("zkt:Event" ("prov:Agent")))
+        ("zkt:wasOrganizedBy" ("zkt:Event" ("prov:Agent")))
+        ("zkt:wasDirectedAt" ("zkt:Event" ("prov:Agent")))
+        ;; 
+        ("zkt:wasLedBy" ("zkt:Event" ("prov:Agent")))
+        ("zkt:wasPerformedOn" ("zkt:Event" ("prov:Agent")))
+        ;;
+        ("prov:wasGeneratedBy" ("prov:Entity" ("prov:Activity")))
+        ;;
+        ("prov:used" ("prov:Activity" ("prov:Entity")))
+        ;;
+        ("prov:wasInformedBy" ("prov:Activity" ("prov:Activity")))
+        ;;
+        ("prov:wasDerivedFrom" ("prov:Entity" ("prov:Entity")))
+        ("prov:wasRevisionOf" ("prov:Entity" ("prov:Entity")))
+        ("prov:hadPrimarySource" ("prov:Entity" ("prov:Entity")))
+        ;;
+        ("prov:atLocation" ("owl:Class" ("prov:Location")))
+
+        ("prov:memberOf" ("prov:Entity" ("prov:Collection")))
+        ;;
+        ("skos:broaderTransitive" ("skos:Concept" ("skos:Concept")))
+        ("skos:broader" ("skos:Concept" ("skos:Concept")))
+        ("skos:narrowerTransitive" ("skos:Concept" ("skos:Concept")))
+        ("skos:narrower" ("skos:Concept" ("skos:Concept")))
+        ("skos:narrowMatch" ("skos:Concept" ("skos:Concept")))
+        ("skos:broadMatch" ("skos:Concept" ("skos:Concept")))
+        ("skos:related" ("skos:Concept" ("skos:Concept")))
+        ("skos:subject" ("owl:Class" ("owl:Class")))
+        ("skos:primarySubject" ("owl:Class" ("owl:Class")))
+        ("skos:isSubjectOf" ("owl:Class" ("owl:Class")))
+        ("skos:isPrimarySubjectOf" ("owl:Class" ("owl:Class")))
+        ;; 
+        ("dct:issued" ("prov:Entity" ("time:DateTimeInterval")))
+        ("dct:date" ("owl:Class" ("time:DateTimeInterval")))
+        ("dct:language" ("owl:Class" ("dct:LinguisticSystem")))
+        ("dct:isPartOf" ("owl:Class" ("owl:Class")))
+        ("dct:hasPart" ("owl:Class" ("owl:Class")))
+        ("zkt:result" ("owl:Class" ("owl:Class")))
+        ("zkt:dosage" ("zkt:Event" ("value")))
+        ;;
+        ("foaf:memberOf" ("foaf:Person" ("foaf:Group")))
+        ;;
+        ("time:hasDateTimeDescription" ("owl:Class" ("time:DateTimeDescription")))
+        ("time:minutes" ("prov:Activity" ("value")))
+        ("time:hours" ("prov:Activity" ("value")))
+        ("time:days" ("prov:Activity" ("value")))
+        ;;
+        ("zkt:distanceKM" ("zkt:Event" ("value")))
+        ))
 
 (setq zettelkasten-classes
       '("owl:Class"
-        ;; Event, Process, Relationship
+        ;; Event, Procedure, Relationship
         ("prov:Activity"
          ("zkt:Event"
-          ("zkt:MusicEvent")
-          ("zkt:Appointment")
-          ("zkt:Übungen")
-          ("zkt:Vortrag")
           ("zkt:Sitzung")
           ("zkt:Seminar")
-          ("zkt:Stay")
           ("zkt:Experience"))
-
-         ("zkt:Process"
+         ("zkt:Procedure"
           ("zkt:ApplicationProcedure")
           ("zkt:Project"
            ("zkt:PhD")))
@@ -516,55 +620,78 @@
            ("zktm:Treatment"
             ("zktm:Vaccination"))
            ("zktm:Diagnostics"))
-          ("zkt:SpatialMovement"
-           ("zkt:Wandern"
-            "zkt:Laufen"))))
+          ("zkt:SpatialMovement")))
         ;;
         ("prov:Entity"
-         ("skos:Concept prov:Entity")
+         ("zkt:LinguisticForm")
+         ("skos:Concept")
          ("prov:Collection")
          ("prov:Plan"
+          ("dct:LinguisticSystem")
+          ("skos:Concept prov:Plan")
           ("zkt:Rezept")
           ("zktm:Vaccine"))
-         ("dct:BibliographicResource"
-          ("zktb:Article"
-           ("zktb:Review"))
-          ("zktb:Book")
-          ("zktb:InBook")
-          ("zktb:Collection")
-          ("zktb:Lexikon")
-          ("zktb:InCollection")
-          ("zktb:Journal")
-          ("zktb:ClassicalText")
-          ("zktb:Report"))
-         ("zkt:DocumentPart"
-          ("zkt:Quote"))
-         ("zkt:Draft")
-         ("zkt:SlideShow")
-         ("zkt:Contract")
-         ("zkt:Excerpt")
-         ("zkt:Mitschrift")
-         ("zkt:Note"))
+         ("zkt:RealObject"
+          ("dct:Software")
+          ("dct:BibliographicResource"
+           ("zktb:ProperBibliographicResource"
+            ("zktb:Article"
+             ("zktb:Review"))
+            ("zktb:Book")
+            ("zktb:InBook")
+            ("zktb:Collection")
+            ("zktb:Lexikon")
+            ("zktb:InCollection")
+            ("zktb:Journal")
+            ("zktb:Issue")
+            ("zktb:Thesis")
+            ("zktb:ClassicalText")
+            ("zktb:Report"))
+           ("zkt:BibliographicEphemera"
+            ("zkt:DocumentPart"         ;; paragraph etc
+             ("zkt:FormalDocumentPart") ;; with headline? Section, Chapter
+             ("zkt:Quote") ;; cites other text, is part of document
+             )
+            ("zkt:Draft")
+            ("zkt:SlideShow")
+            ("zkt:Excerpt")
+            ("zkt:Letter")
+            ("zkt:Contract")
+            ("zkt:Mitschrift")
+            ("zkt:Note")))))
         ;;
         ("prov:Agent"
-         ("prov:Person foaf:Person"
-          "prov:Organization foaf:Organization"))
+         ("foaf:Agent"
+          ("foaf:Person")
+          ("foaf:Organization"))
+         ("prov:Person"
+          ("foaf:Person")
+          ("prov:Person foaf:Person"))
+         ("prov:SoftwareAgent")
+         ("prov:Organization"
+          ("foaf:Group")
+          ("foaf:Organization")))
+        ;;
+        ("prov:InstantaneousEvent"
+         ("zkt:Waypoint"))
         ;;
         ("prov:Location"
-         ("prov:Location geo:Point"
+         ("zkt:RealObject prov:Location geo:Point"
           ("zkt:TrainStation")
           ("zkt:Airport")))
-        "time:ProperInterval"
-        "dct:Collection"
-        "dct:LinguisticSystem" "dct:Software" "dct:PhysicalResource" "dct:Location"
-        "skos:ConceptScheme"
-        "skos:Concept"
-        "skos:Collection"
-        "foaf:Group"
+        ("time:ProperInterval")
+        ("time:DateTimeInterval")
+        ("time:DateTimeDescription")
+        ("dct:Collection")
+        ("dct:PhysicalResource")
+        ("skos:ConceptScheme")
+        ("skos:Collection")
         ("prov:Influence"
+         ("zkt:SemanticRelation")
          ("prov:EntityInfluence"
           ("prov:Usage")
-          ("zkt:Perception")))))
+          ("zkt:Perception")))
+        "value"))
 
 
 ;;;###autoload
@@ -579,8 +706,11 @@
 ;;;###autoload
 (defun zettelkasten-set-type-headline (&optional type)
   (interactive)
-  (let ((type-sel (or type (completing-read "Type: "
-                                            (-flatten zettelkasten-classes)))))
+  (let ((type-sel (or (when (stringp type)
+                        type)
+                      (completing-read "Type: "
+                                       (or type
+                                           (-flatten zettelkasten-classes))))))
     (org-set-property "RDF_TYPE" type-sel)))
 
 
@@ -612,11 +742,50 @@
 ;;;###autoload
 (defun zettelkasten-insert-link-at-point (&optional link-predicate link-target)
   (interactive)
-  (let* ((zk-id (org-entry-get nil "CUSTOM_ID"))
+  (let* ((filename (buffer-file-name))
+         (element (org-element-parse-buffer))
+         (zk-id (org-entry-get nil "CUSTOM_ID"))
          (zettel-target link-target)
-         (predicate (or link-predicate
+         ;; List of node types in heading or file
+         (node-types
+          (unless link-predicate
+            (save-excursion
+              (zettelkasten-get-property-or-filetag-upwards filename
+                                                            element
+                                                            "RDF_TYPE"))))
+         ;; List of types in hierarchy upwards
+         (node-hierarchy (unless link-predicate
+                           (delete-dups ;;todo?
+                            (mapcan
+                             (lambda (type)
+                               (zettelkasten-tree-get-path
+                                type
+                                zettelkasten-classes))
+                             node-types))))
+         (predicate-by-domain (unless link-predicate
+                                (remove
+                                 nil
+                                 (mapcar (lambda (entry)
+                                           (when (member (caadr entry)
+                                                         node-hierarchy)
+                                             (car entry)))
+                                         zettelkasten-predicate-domain-range))))
+
+         (predicate (or (when (stringp link-predicate)
+                          link-predicate)
                         (completing-read "Predicate: "
-                                         (zettelkasten-flat-predicates))))
+                                         (or link-predicate
+                                             predicate-by-domain))))
+         ;; List of possible target classes
+         (classes-by-pred-range (cadr (cadr (assoc
+                                             predicate
+                                             zettelkasten-predicate-domain-range))))
+         ;; List of classes including ones lower in class hierarchy
+         (target-classes (-flatten
+                          (mapcan (lambda (rangeitem)
+                                    (zettelkasten-tree-assoc
+                                     rangeitem zettelkasten-classes))
+                                  classes-by-pred-range)))
          (turtle (s-starts-with? ":TURTLE" (thing-at-point 'line t)))
          (zettel
           (save-excursion
@@ -626,11 +795,24 @@
                          (lambda (node)
                            (list
                             (format "%s [%s]"
-                                    (car node)
-                                    (file-name-base (cadr node)))
+                                    (s-pad-right 120 " " (s-truncate 120 (car node)))
+                                    (s-truncate 40 (file-name-base (cadr node))))
                             (caddr node)))
-                         (zettelkasten-db-query [:select [title filename zkid]
-                                                 :from nodes]))
+                         (if target-classes
+                             (let ((edges
+                                    (-flatten
+                                     (zettelkasten-db-query
+                                      [:select [subject]
+                                       :from edges
+                                       :where (= predicate "rdf:type")
+                                       :and (in object $v1)]
+                                      (vconcat target-classes)))))
+                               (zettelkasten-db-query [:select [title filename zkid]
+                                                       :from nodes
+                                                       :where (in zkid $v1)]
+                                                      (vconcat edges)))
+                           (zettelkasten-db-query [:select [title filename zkid]
+                                                   :from nodes])))
                         :action
                         (lambda (selection)
                           (if (listp selection)
@@ -639,7 +821,7 @@
                                 (setq zettel-target selection)
                               (other-window 1)
                               (zettelkasten-new-zettel selection)
-                              (setq zettel-target (buffer-file-name)))))))))
+                              (setq zettel-target filename))))))))
          (zettel-id (if (s-starts-with? "val:" zettel-target)
                         (s-chop-prefix "val:" zettel-target)
                       (car
@@ -648,17 +830,16 @@
                          (remove nil
                                  (car (zettelkasten-db-query
                                        [:select [label zkid]
-                                                :from nodes
-                                                :where (= zkid $s1)]
+                                        :from nodes
+                                        :where (= zkid $s1)]
                                        zettel-target))))))))
          (zettel-title
           (if (s-starts-with? "val:" zettel-target)
               (s-chop-prefix "val:" zettel-target)
-            (read-string "Title: "
-                         (car (zettelkasten-db-query [:select title
-                                                      :from nodes
-                                                      :where (= zkid $s1)]
-                                                     zettel-target))))))
+            (caar (zettelkasten-db-query [:select title
+                                          :from nodes
+                                          :where (= zkid $s1)]
+                                         zettel-target)))))
     (if predicate
         (if (and zk-id (stringp zk-id) (string-match "\\S-" zk-id))
             (if (equal turtle t)
@@ -669,10 +850,20 @@
                           predicate zettel-id zettel-title)))
       (insert (format "[[zk:%s][%s]]" zettel-id zettel-title)))))
 
+(defun zettelkasten-insert-link-loop ()
+  (interactive)
+  (insert "- ")
+  (zettelkasten-insert-link-at-point)
+  (newline)
+  (zettelkasten-insert-link-loop))
 
-(defun zettelkasten-heading-set-relation-to-context ()
-  (let* ((predicate (completing-read "Predicate: " (zettelkasten-flat-predicates)
-                                     nil nil "dct:isPartOf"))
+
+
+(defun zettelkasten-heading-set-relation-to-context (&optional pred)
+  (let* ((predicate (or pred
+                     (completing-read "Predicate: "
+                                      (zettelkasten-flat-predicates)
+                                      nil nil "dct:isPartOf")))
          (target (completing-read "Target:"
                                   (zettelkasten-db-query [:select zkid
                                                           :from nodes
@@ -682,21 +873,32 @@
     (org-set-property "TURTLE" turtle)))
 
 ;;;###autoload
-(defun zettelkasten-heading-to-node ()
+(defun zettelkasten-heading-to-node (&optional rdftype prov-id predicate)
   (interactive)
-  (zettelkasten-set-type-headline)
-  (zettelkasten-id-get-create)
-  (zettelkasten-heading-set-relation-to-context))
+  (zettelkasten-set-type-headline rdftype)
+  (zettelkasten-id-get-create prov-id)
+  (zettelkasten-heading-set-relation-to-context predicate))
 
-(defun zettelkasten-id-get-create ()
+(defun zettelkasten-heading-to-docpart ()
+  (interactive)
+  (zettelkasten-set-type-headline '("zkt:DocumentPart"
+                                    "zkt:FormalDocumentPart"))
+  (zettelkasten-id-get-create (concat (file-name-base) "--"))
+  (zettelkasten-heading-set-relation-to-context "dct:isPartOf"))
+
+
+(defun zettelkasten-id-get-create (&optional prov-id)
   (let ((zk-id (org-entry-get nil "CUSTOM_ID")))
     (unless (and zk-id (stringp zk-id) (string-match "\\S-" zk-id))
       (let* ((myid
-              (completing-read
-               "ID: " `(,(zettelkasten-extract-value "ZK_LABEL")
-                        ,(concat "zk-" (s-chop-suffix ".org" (buffer-name)))
-                        ,(file-name-base)
-                        ,(concat "zk-" (s-left 15 (s-replace "T" "-" (org-id-new)))))))
+
+              (or prov-id
+                  (completing-read
+                   "ID: "
+                   `(,(zettelkasten-extract-value "ZK_LABEL")
+                     ,(concat "zk-" (s-chop-suffix ".org" (buffer-name)))
+                     ,(file-name-base)
+                     ,(concat "zk-" (s-left 17 (org-id-new)))))))
              (editid (read-string "Edit ID: " myid)))
         (setq zk-id editid))
       (org-set-property "CUSTOM_ID" zk-id))
@@ -943,7 +1145,12 @@
 (defun zettelkasten-open-zettel-random ()
   (interactive)
   (let* ((zettel
-          (zettelkasten-db--title-filename))
+          (zettelkasten-db-query [:select [title filename zkid]
+                                  :from nodes
+                                  :where (= type "file")
+                                  :and rdftype :is :null])
+          ;; (zettelkasten-db--title-filename)
+          )
          (rand-element
           (random (safe-length zettel))))
     (find-file (cadr (nth rand-element zettel)))))
@@ -991,6 +1198,36 @@
            (s-left 15 (s-chop-prefix "eph/" fname-chop)))
           (t (s-left 15 fname-chop)))))
 
+(defun zettelkasten-node-to-zettel ()
+  (interactive)
+  (save-excursion
+    (org-back-to-heading t)
+    (let* ((properties (org-entry-properties))
+           (title (cdr (assoc "ITEM" properties)))
+           (rdftype (cdr (assoc "RDF_TYPE" properties)))
+           (label (cdr (assoc "CUSTOM_ID" properties)))
+           (descriptor (cdr (assoc "DESCRIPTOR" properties)))
+           (collection (cdr (assoc "COLLECTION" properties)))
+           (content (progn
+                      (org-forward-paragraph 2)
+                      (buffer-substring-no-properties
+                       (point) (org-end-of-subtree)))))
+      (org-cut-subtree)
+      (zettelkasten-new-zettel title rdftype)
+      (zettelkasten-set-label label)
+      (when collection
+        (zettelkasten-zettel-ensure-keyword "COLLECTION")
+        (insert (format " %s" collection)))
+      (search-forward "Inhalt")
+      (next-line)
+      (insert content)
+      (if descriptor
+          (progn
+            (zettelkasten-zettel-ensure-keyword "DESCRIPTOR")
+            (insert (format " %s" descriptor)))
+        (zettelkasten-zettel-add-descriptor))
+      (save-buffer))))
+
 ;;;###autoload
 (defun zettelkasten-open-zettel-descriptor ()
   (interactive)
@@ -1012,8 +1249,25 @@
 (defun zettelkasten-tree-assoc (key tree)
   (when (consp tree)
     (destructuring-bind (x . y) tree
-      (if (equal x key) tree            ;; fct of comparing
-        (or (zettelkasten-tree-assoc key x) (zettelkasten-tree-assoc key y))))))
+      (if (equal x key)
+          tree ;; fct of comparing
+        (or (zettelkasten-tree-assoc key x)
+            (zettelkasten-tree-assoc key y))))))
+
+(defun zettelkasten-tree-get-path (key tree &optional path-in)
+  (let ((path (or path-in nil)))
+    (when (consp tree)
+      (destructuring-bind (x . y) tree
+        (if (equal x key)
+            path
+          (if (listp x)
+              (push (car x) path)
+            (push x path))
+          (or (progn
+                (zettelkasten-tree-get-path key x path))
+              (progn
+                (when path-in (pop path))
+                (zettelkasten-tree-get-path key y path))))))))
 
 (defun zettelkasten-predicate-hierachy (predicate)
   "Returns vector of predicate hierarchy."
@@ -1098,9 +1352,18 @@
              :from nodes
              :where (in zkid $v1)]
             (vconcat (zettelkasten-db--nodes-semantic)))))
-         (selection (assoc (completing-read "Node: " completions) completions)))
-    (find-file (cadr selection))
-    (search-forward (caddr selection) nil t)))
+         ;; (selection (assoc (completing-read "Node: " completions) completions))
+         )
+    (ivy-read "Node: " completions
+              :action
+              (lambda (selection)
+                (find-file (cadr selection))
+                (search-forward (caddr selection) nil t)
+                )
+              )
+    ;; (find-file (cadr selection))
+    ;; (search-forward (caddr selection) nil t)
+    ))
 
 
 
@@ -1113,20 +1376,43 @@
          (selection (assoc (completing-read "Zettel: " completions) completions)))
     (find-file (cadr selection))))
 
+(defun zettelkasten-get-property-or-filetag-upwards (filename element property)
+  (let ((return-value))
+    (while (not return-value)
+      (let ((prop-value (cdr (assoc property (org-entry-properties)))))
+        (condition-case nil
+            (if prop-value
+                (setq return-value (split-string prop-value))
+              (outline-up-heading 1))
+          (error
+           (if (equal property "CUSTOM_ID")
+               ;; corner case for ids and labes
+               (setq return-value (append
+                                   (ignore-errors
+                                     (split-string
+                                      (zettelkasten-extract-value "ZK_LABEL"
+                                                                  element)))
+                                   (list (zettelkasten--filename-to-id
+                                          filename))))
+             (setq return-value (split-string
+                                 (zettelkasten-extract-value
+                                  property
+                                  element))))))))
+    return-value))
 
 (defun zettelkasten--get-backlinks (filename)
   "Files linking to nodes of FILENAME. Return list links."
   (let* ((current-ids ;; all ids of this file
-          (-flatten (zettelkasten-db-query [:select [zkid label]
-                                                    :from nodes
-                                                    :where (= filename $s1)]
-                                           filename)))
+          (zettelkasten-get-property-or-filetag-upwards
+           filename
+           (org-element-parse-buffer)
+           "CUSTOM_ID"))
          (backlinks
           (zettelkasten-db-query [:select [e:predicate n:title n:filename]
-                                          :from edges e
-                                          :inner-join nodes n
-                                          :on (= e:subject n:zkid)
-                                          :where (in object $v1)]
+                                  :from edges e
+                                  :inner-join nodes n
+                                  :on (= e:subject n:zkid)
+                                  :where (in object $v1)]
                                  (vconcat current-ids)))
          (len (car (sort
                     (mapcar (lambda (link)
@@ -1134,11 +1420,14 @@
                             backlinks)
                     '>))))
     (mapcar (lambda (link)
-              (list (concat "<- "
+              (list (concat " <- "
                             (s-pad-right (+ 2 len) " " (car link))
-                            (cadr link))
+                            (s-pad-right 80 " " (s-left 80 (cadr link)))
+                            "  "
+                            (s-pad-right 40 " "
+                                         (s-left 40 (file-name-base (caddr link))))
+                            " ")
                     (caddr link)))
-
             backlinks)))
 
   
@@ -1157,14 +1446,14 @@
            (seq-filter
             (lambda (filename)
               (or (not (string-match "/home/job/Dropbox/db/zk/zettel/.*" filename))
-                  (string-match "/home/job/Dropbox/db/zk/zettel/jr/.*" filename)))
+                  (and (string-match "/home/job/Dropbox/db/zk/zettel/jr/.*" filename)
+                       (= 10 (length (file-name-base filename))))))
             (org-agenda-files)))
           (zettelkasten-agenda-files
            (-flatten (zettelkasten-db-query
                       [:select [filename]
                        :from nodes
-                       :where (= todo 't)
-                       :and (not (like filename '"%/jr/%"))]))))
+                       :where (= todo 't)]))))
       (setq org-agenda-files (append not-zettelkasten-agenda-files
                                      zettelkasten-agenda-files)))))
 
@@ -1234,6 +1523,9 @@
   ("b" zettelkasten-inbox-bury "Bury" :color red)
   ("t" zettelkasten-inbox-trash "Trash" :color red)
 
+  ("l" zettelkasten-insert-link-at-point "Link" :column "Edit")
+  ("L" zettelkasten-insert-link-loop "Link loop")
+
   ("p" zettelkasten-capture-push "Push Link" :column "Zettelkasten")
   ("P" (zettelkasten-capture-push t) "Push Heading")
   ("f" zettelkasten-set-context-filter "Set filter")
@@ -1243,8 +1535,6 @@
   ("c" zettelkasten-zettel-add-collection "Add collection" :column "Zettel")
   ("#" zettelkasten-zettel-add-descriptor "Add descriptor")
   ("x" zettelkasten-zettel-add-index "Add Index")
-  ("l" zettelkasten-insert-link-at-point "Link")
-  ("L" zettelkasten-insert-link-heading-at-point "Link heading")
   ("i" zettelkasten-zettel-info "Info")
   ("v" zettelkasten-vis-buffer "Visualize")
   ("ü" zettelkasten-set-type-and-label "Set label and type")
@@ -1256,21 +1546,22 @@
   ("+" zettelkasten-heading-to-node "Node")
   ("hf" zettelkasten-headline-set-followup "Set followup")
   ("hr" zettelkasten-headline-reset "Reset")
+  ("hz" zettelkasten-node-to-zettel "Zettel")
 
   ("n" org-noter "noter" :column "Other")
   ("u" zettelkasten-update-org-agenda-files "Update agenda")
   ("q" nil "Quit"))
 
 
-;; (defun zettelkasten-rfloc (file headline)
-;;   (let ((pos
-;;          (save-excursion
-;;            (save-selected-window
-;;              (if (string= file (buffer-file-name))
-;;                  (find-file file)
-;;                (find-file-other-window file))
-;;              (org-find-exact-headline-in-buffer headline)))))
-;;     (org-refile nil nil (list headline file nil pos))))
+ (defun zettelkasten-rfloc (file headline)
+   (let ((pos
+          (save-excursion
+            (save-selected-window
+              (if (string= file (buffer-file-name))
+                  (find-file file)
+                (find-file-other-window file))
+              (org-find-exact-headline-in-buffer headline)))))
+     (org-refile nil nil (list headline file nil pos))))
 
 ;; (defun zettelkasten-refile-base (&optional arg)
 ;;   (let* ((linked
@@ -1339,7 +1630,7 @@
   (find-file zettelkasten-inbox-file)
   (widen)
   (goto-char (point-min))
-  (search-forward "* Refile")
+  (search-forward "* Elfeed")
   (org-sort-entries nil ?p)
   (org-next-visible-heading 1)
   (org-narrow-to-subtree)
@@ -1349,7 +1640,7 @@
 (defun zettelkasten-inbox-bury ()
   (interactive)
   (widen)
-  (zettelkasten-rfloc zettelkasten-inbox-file "Refile")
+  (zettelkasten-rfloc zettelkasten-inbox-file "Elfeed")
   (zettelkasten-inbox-process))
 
 ;;;###autoload
@@ -1657,7 +1948,18 @@ Turning on this mode runs the normal hook `zettelkasten-capture-mode-hook'."
     (kill-buffer (current-buffer))
     (find-file new)))
 
-
+(defun zettelkasten-delete-file (&optional filename)
+  (interactive)
+  (let ((filename (file-truename (or filename (buffer-file-name)))))
+    (when (yes-or-no-p "Delete zettel? ")
+      (zettelkasten-db-query [:delete-from nodes
+                              :where (= filename $s1)]
+                             filename)
+      (zettelkasten-db-query [:delete-from edges
+                              :where (= filename $s1)]
+                             filename)
+      (kill-current-buffer)
+      (delete-file filename))))
 
 (defun zettelkasten-extract-value (keyword &optional element)
   (org-element-map
