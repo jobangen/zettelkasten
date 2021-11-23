@@ -395,10 +395,10 @@ Options: `immediate' and `when-idle'."
         (modtime (format-time-string "%Y-%m-%d %H:%M:%S%3N"))
         (hash (secure-hash 'sha1 (current-buffer))))
     (zettelkasten-db-query [:delete-from files
-                                         :where (= filename $s1)]
+                            :where (= filename $s1)]
                            filename)
     (zettelkasten-db-query [:insert :into files
-                                    :values $v1]
+                            :values $v1]
                            (vector filename title todo modtime hash))))
 
 (defun zettelkasten-db--update-id (filename element)
@@ -441,10 +441,10 @@ Options: `immediate' and `when-idle'."
                           (vector nil filename entry title)))
                       index)))
         (zettelkasten-db-query [:delete-from index
-                                             :where (= filename $s1)]
+                                :where (= filename $s1)]
                                filename)
         (zettelkasten-db-query [:insert :into index
-                                        :values $v1]
+                                :values $v1]
                                idx-vec)))))
 
 (defun zettelkasten-db--update-descriptor (filename element)
@@ -455,10 +455,10 @@ Options: `immediate' and `when-idle'."
                         (vector nil filename desc))
                       descriptor)))
         (zettelkasten-db-query [:delete-from descriptor
-                                             :where (= filename $s1)]
+                                :where (= filename $s1)]
                                filename)
         (zettelkasten-db-query [:insert :into descriptor
-                                        :values $v1]
+                                :values $v1]
                                desc-vec)))))
 
 (defun zettelkasten-db--update-collection (filename element)
@@ -469,10 +469,10 @@ Options: `immediate' and `when-idle'."
                         (vector nil filename col))
                       collection)))
         (zettelkasten-db-query [:delete-from collection
-                                             :where (= filename $s1)]
+                                :where (= filename $s1)]
                                filename)
         (zettelkasten-db-query [:insert :into collection
-                                        :values $v1]
+                                :values $v1]
                                col-vec)))))
 
 (defun zettelkasten-db--update-meta (filename)
@@ -508,10 +508,10 @@ Options: `immediate' and `when-idle'."
                                 nil))))))
          (vcomp (append vfile vhead)))
     (zettelkasten-db-query [:delete-from nodes
-                                         :where (= filename $s1)]
+                            :where (= filename $s1)]
                            filename)
     (zettelkasten-db-query [:insert :into nodes
-                                    :values $v1]
+                            :values $v1]
                            vcomp)
     vcomp))
 
@@ -691,15 +691,15 @@ Options: `immediate' and `when-idle'."
   (if files
       (-flatten
        (zettelkasten-db-query [:select :distinct [object]
-                                       :from edges
-                                       :where (in filename $v1)
-                                       :and (= predicate "skos:subject")]
+                               :from edges
+                               :where (in filename $v1)
+                               :and (= predicate "skos:subject")]
                               (vconcat files)))
     (-flatten
      (zettelkasten-db-query [:select :distinct [object]
-                                     :from edges
-                                     :where (= predicate "skos:subject")
-                                     :or (= predicate "skos:primarySubject")]))))
+                             :from edges
+                             :where (= predicate "skos:subject")
+                             :or (= predicate "skos:primarySubject")]))))
 
 (defun zettelkasten-db--files-matching-descriptor (&optional input-files)
   "Select descriptor and return matching zettel."
