@@ -253,6 +253,37 @@ Options: `immediate' and `when-idle'."
                        (split-string types))))))))))
 
 
+(defun zettelkasten-db--extract-collections-file (filename element)
+  "Extracts collections, processes them and return list of vectors"
+  (let ((collections
+         (zettelkasten-extract-value "COLLECTION" element)))
+    (when collections
+      (let ((collections-proc (zettelkasten--process-subjects
+                            (split-string collections))))
+        (mapcar
+         (lambda (collection)
+           (vector nil
+                   filename
+                   (zettelkasten--filename-to-id filename)
+                   "prov:memberOf"
+                   collection))
+         collections-proc)))))
+
+(defun zettelkasten-db--extract-collections-headings (filename element)
+  "Extracts headline-collections, processes them and return list of vectors"
+  (-flatten
+   (org-element-map element 'headline
+     (lambda (headline)
+       (when (org-element-property :CUSTOM_ID headline)
+         (let ((customid (org-element-property :CUSTOM_ID headline))
+               (collections (org-element-property :COLLECTION headline)))
+           (when collections
+             (mapcar (lambda (collection)
+                       (vector nil filename customid "prov:memberOf" collection))
+                     (zettelkasten--process-subjects
+                      (split-string collections))))))))))
+
+
 (defun zettelkasten-db--extract-subjects-file (filename element)
   "Extracts subjects, processes them and return list of vectors"
   (let ((subjects
@@ -489,6 +520,9 @@ Options: `immediate' and `when-idle'."
          (element (or el (org-element-parse-buffer)))
          (ftype (zettelkasten-db--extract-types-file filename element))
          (htype (zettelkasten-db--extract-types-headings filename element))
+         (fcollection (zettelkasten-db--extract-collections-file filename element))
+         (hcollection
+          (zettelkasten-db--extract-collections-headings filename element))
          (fsubjects (zettelkasten-db--extract-subjects-file filename element))
          (hsubjects (zettelkasten-db--extract-subjects-headings filename element))
          (turtle
@@ -544,7 +578,9 @@ Options: `immediate' and `when-idle'."
                                  (car linksplit)
                                  (cadr linksplit)
                                  (caddr linksplit)))))))))
-         (links (append ftype htype fsubjects hsubjects turtle orglinks)))
+         (links (append ftype htype
+                        fcollection hcollection
+                        fsubjects hsubjects turtle orglinks)))
     (zettelkasten-db-query [:delete-from edges
                             :where (= filename $s1)]
                            filename)
@@ -568,7 +604,7 @@ Options: `immediate' and `when-idle'."
         ;; (zettelkasten-db--update-link fname element)
         ;; (zettelkasten-db--update-index fname element)
         ;; (zettelkasten-db--update-descriptor fname element)
-        (zettelkasten-db--update-collection fname element)
+        ;; (zettelkasten-db--update-collection fname element)
         (zettelkasten-db--update-meta fname)
         (zettelkasten-db--update-nodes fname element)
         (zettelkasten-db--update-edges fname element)))))
@@ -612,7 +648,6 @@ Options: `immediate' and `when-idle'."
 (when (eq zettelkasten-db-update-method 'when-idle)
   (run-with-idle-timer
    zettelkasten-db-idle-seconds t #'zettelkasten-db--update-on-timer))
-
 
 (defun zettelkasten-db-process ()
   (interactive)
