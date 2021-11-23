@@ -888,20 +888,6 @@
                                    "gitstats .git gitstats &&"
                                    "firefox 'gitstats/index.html'")))
 
-(defun zettelkasten--get-collection-zettel ()
-  (let ((collection
-         (completing-read
-          "Collection: " (-flatten
-                          (zettelkasten-db-query
-                           [:select :distinct [collection]
-                                    :from collection])))))
-    (zettelkasten-db-query
-     [:select [title files:filename collection]
-              :from collection
-              :left-outer-join files
-              :on (= collection:filename files:filename)
-              :where (= collection $s1)]
-     collection)))
 
 
 
@@ -938,47 +924,6 @@
              (search-forward (caddr selection) nil t)))
        (zettelkasten-new-zettel selection)))))
 
-;;;###autoload
-(defun zettelkasten-open-zettel-random ()
-  (interactive)
-  (let* ((zettel
-          (zettelkasten-db-query [:select [title filename zkid]
-                                  :from nodes
-                                  :where (= type "file")
-                                  :and rdftype :is :null])
-          ;; (zettelkasten-db--title-filename)
-          )
-         (rand-element
-          (random (safe-length zettel))))
-    (find-file (cadr (nth rand-element zettel)))))
-
-;;;###autoload
-(defun zettelkasten-open-zettel-collection ()
-  (interactive)
-  ;; (let ((collection
-  ;;        (completing-read
-  ;;         "Collection: " (-flatten
-  ;;                         (zettelkasten-db-query
-  ;;                          [:select :distinct [collection]
-  ;;                                   :from collection]))))))
-
-  (ivy-read
-   (format "Zettel: ")
-   (zettelkasten--get-collection-zettel)
-   :preselect "Inbox"
-   :action
-   (lambda (selection)
-     (find-file
-      (cadr selection)))))
-
-
-(defun zettelkasten--get-cons-title-fname (plist)
-  (mapcar (lambda (arg)
-            (cons
-             (plist-get arg :title)
-             (plist-get arg :file)))
-          plist))
-
 (defun zettelkasten--filename-to-id (filename)
   "Extract id from FILENAME. Return string."
   (let* ((fname-chop
@@ -995,35 +940,6 @@
            (s-left 15 (s-chop-prefix "eph/" fname-chop)))
           (t (s-left 15 fname-chop)))))
 
-(defun zettelkasten-node-to-zettel ()
-  (interactive)
-  (save-excursion
-    (org-back-to-heading t)
-    (let* ((properties (org-entry-properties))
-           (title (cdr (assoc "ITEM" properties)))
-           (rdftype (cdr (assoc "RDF_TYPE" properties)))
-           (label (cdr (assoc "CUSTOM_ID" properties)))
-           (descriptor (cdr (assoc "DESCRIPTOR" properties)))
-           (collection (cdr (assoc "COLLECTION" properties)))
-           (content (progn
-                      (org-forward-paragraph 2)
-                      (buffer-substring-no-properties
-                       (point) (org-end-of-subtree)))))
-      (org-cut-subtree)
-      (zettelkasten-new-zettel title rdftype)
-      (zettelkasten-set-label label)
-      (when collection
-        (zettelkasten-zettel-ensure-keyword "COLLECTION")
-        (insert (format " %s" collection)))
-      (search-forward "Inhalt")
-      (next-line)
-      (insert content)
-      (if descriptor
-          (progn
-            (zettelkasten-zettel-ensure-keyword "DESCRIPTOR")
-            (insert (format " %s" descriptor)))
-        (zettelkasten-zettel-add-descriptor))
-      (save-buffer))))
 
 ;;;###autoload
 (defun zettelkasten-open-zettel-descriptor ()
@@ -1035,12 +951,6 @@
    (lambda (selection)
      (find-file
       (cadr selection)))))
-
-(defun zettelkasten-db--values-predicate ()
-  (-flatten
-   (zettelkasten-db-query [:select :distinct [predicate]
-                           :from edges])))
-
 ;; https://stackoverflow.com/questions/11912027/emacs-lisp-search-anything-in-a-nested-list
 
 (defun zettelkasten-tree-assoc (key tree)
@@ -1162,17 +1072,6 @@
     ;; (search-forward (caddr selection) nil t)
     ))
 
-
-
-(defun zettelkasten-open-zettel-todo ()
-  (interactive)
-  (let* ((completions (zettelkasten-db-query
-                       [:select [title filename]
-                                :from files
-                                :where (= todo 't)]))
-         (selection (assoc (completing-read "Zettel: " completions) completions)))
-    (find-file (cadr selection))))
-
 (defun zettelkasten-get-property-or-filetag-upwards (filename element property)
   (let ((return-value))
     (while (not return-value)
@@ -1255,55 +1154,6 @@
                                      zettelkasten-agenda-files)))))
 
 
-;;;###autoload
-(defun zettelkasten-headline-set-followup ()
-  (interactive)
-  (save-excursion
-    (org-back-to-heading)
-    (org-todo "TODO")
-    (org-set-property "CATEGORY" "zkt")
-    (org-set-tags '("zkt" "followup"))))
-
-;;;###autoload
-(defun zettelkasten-headline-reset ()
-  (interactive)
-  (save-excursion
-    (org-back-to-heading)
-    (org-set-tags '())
-    (org-todo "")
-    (ignore-errors
-      (org-priority ?\ ))))
-
-;;;###autoload
-(defun zettelkasten-zettel-open-external ()
-  (interactive)
-  (let ((element (org-element-parse-buffer))
-        (zkid (zettelkasten--filename-to-id (buffer-file-name))))
-    (cond ((s-starts-with? "zktb:" (zettelkasten-extract-value "RDF_TYPE" element))
-           (org-link-open-from-string
-            (concat
-             "file:"
-             zettelkasten-bibliography-file
-             "::"
-             (file-name-base (buffer-file-name)))))
-          ((member
-            "prov:Location"
-            (split-string (zettelkasten-extract-value "RDF_TYPE" element)))
-           (let ((latitude
-                  (caar (zettelkasten-db-query [:select object
-                                           :from edges
-                                           :where (= subject $s1)
-                                           :and (= predicate "geo:lat")]
-                                          zkid)))
-                 (longitude
-                  (caar (zettelkasten-db-query [:select object
-                                           :from edges
-                                           :where (= subject $s1)
-                                           :and (= predicate "geo:long")]
-                                          zkid))))
-             (browse-url (format
-                          "https://www.google.com/maps/search/?api=1&query=%s,%s"
-                          latitude longitude)))))))
 
 
 (defhydra hydra-zettelkasten (:color blue)
@@ -1628,89 +1478,6 @@ Turning on this mode runs the normal hook `zettelkasten-capture-mode-hook'."
   (zettelkasten-capture-mode))
 
 
-
-(defun zettelkasten-each-file ()
-  (interactive)
-  (let* ((path "/home/job/Dropbox/db/zk/zettel/txt/")
-         (files
-          (directory-files path nil ".org$")))
-    (dolist (zettel files)
-      (let ((fullfname
-             (concat path "/" zettel)))
-        (find-file fullfname)
-        (zettelkasten-zettel-add-collection "txt")
-        (goto-char (point-min))
-        (while (search-forward "txt txt" nil t)
-          (replace-match "txt"))
-        (save-buffer)
-        (kill-current-buffer)))))
-
-(defun zettelkasten-each-file ()
-  (interactive)
-  (let* ((files (-flatten
-                 (zettelkasten-db-query
-                  [:select filename
-                   :from nodes
-                   :where (= rdftype "time:DateTimeDescription")]))))
-    (dolist (zettel files)
-      (find-file zettel)
-      (goto-char (point-min))
-      (while (search-forward "time:DateTimeDescription" nil t)
-        (replace-match "time:DateTimeInterval"))
-      (save-buffer)
-      (kill-current-buffer))))
-
-
-
-(defun zettelkasten-each-file-2 ()
-  (interactive)
-  (let* ((path "/home/job/Dropbox/db/zk/zettel/jr/")
-         (files
-          (directory-files path nil ".org$")))
-    (dolist (zettel files)
-      (let ((fullfname
-             (concat path "/" zettel)))
-        (find-file fullfname)
-        (if (not (search-forward "RDF_TYPE:" nil t))
-            (progn (zettelkasten-zettel-ensure-keyword "RDF_TYPE")
-                   (goto-char (point-min))
-                   (search-forward "RDF_TYPE:" nil t)
-                   (end-of-line)
-                   (insert " time:ProperInterval")
-                   (save-buffer)))
-        (kill-current-buffer)))))
-
-(defun zettelkasten-each-file-3 ()
-  (interactive)
-  (let ((files (zettelkasten--get-all-files)))
-    (dolist (zettel files)
-      (goto-char (point-min))
-      (ignore-errors
-        (find-file zettel)
-        (search-forward "DESCRIPTOR:")
-        (narrow-to-region (point) (line-end-position))
-        (while (search-forward " #" nil t)
-          (replace-match " "))
-        (widen)
-        (save-buffer)
-        (kill-buffer)
-        (message zettel)))))
-
-
-
-
-
-;;;###autoload
-(defun zettelkasten-link-archive ()
-  (interactive)
-  (let* ((arch-path "/home/job/archive/date-description/")
-         (file (read-file-name
-                "File: " arch-path))
-         (file-proc (car (split-string (s-replace arch-path "" file) " -- ")))
-         (description (read-string "Description: "
-                                   (last (split-string file-proc "/")))))
-    (insert (format "[[arch:%s][%s]]" file-proc description))))
-
 ;;;###autoload
 (defun zettelkasten-zettel-rename ()
   (interactive)
@@ -1766,88 +1533,7 @@ Turning on this mode runs the normal hook `zettelkasten-capture-mode-hook'."
           (org-element-property :value kw)))
     :first-match t))
 
-;;;###autoload
-(defun zettelkasten-journal-weekly-file ()
-  (interactive)
-  (let* ((filename (format-time-string "%Y-w%W.org"))
-         (filepath (concat org-journal-dir filename)))
-    (if (file-exists-p filepath)
-        (find-file filepath)
-      (switch-to-buffer-other-window filename)
-      (insert
-       (format-time-string "#+TITLE: jr: %Y-W%W:\n#+RDF_TYPE: time:ProperInterval\n#+COLLECTION: journal\n#+DESCRIPTOR: #%Y #%A #W%W @journal\n\n* %Y-W%W"))
-      (write-file filepath))))
 
-;;;###autoload
-(defun zettelkasten-yearly-file (&optional year)
-  (interactive)
-  (let* ((yearp (or (when year (number-to-string year)) (read-string "Year: ")))
-         (filepath (concat org-journal-dir yearp ".org")))
-    (zettelkasten-db-query [:delete-from nodes
-                            :where (= filename $s1)]
-                           filepath)
-    (zettelkasten-db-query [:delete-from edges
-                            :where (= filename $s1)]
-                           filepath)
-    (when (file-exists-p filepath)
-      (delete-file filepath))
-    (switch-to-buffer filepath)
-    (insert (format "#+TITLE: %s
-#+RDF_TYPE: time:DateTimeInterval
-
-* [[zk:%s::time:hasDateTimeDescription::dtd-%s][DTD]]
-* DateTimeDescription
-:PROPERTIES:
-:RDF_TYPE: time:DateTimeDescription
-:CUSTOM_ID: dtd-%s
-:END:
-- [[zk:dtd-%s::time:year::%s][%s]]
-"
-                    yearp yearp yearp yearp yearp yearp yearp))
-    (write-file filepath)
-    (kill-current-buffer)))
-
-
-;;;###autoload
-(defun zettelkasten-create-year-files ()
-  (interactive)
-  (let ((years (number-sequence 1900 2021 1)))
-    (dolist (year years)
-      (zettelkasten-yearly-file year))))
-
-;;;###autoload
-(defun zettelkasten-move-to-todays-tasks ()
-  (interactive)
-  ;; old file
-  (goto-char (point-min))
-  (search-forward "Today's Tasks" nil t)
-  ;; today's file
-  (org-journal-new-entry '4)
-  (unless (search-forward "Today's Tasks" nil t)
-    (progn
-      (goto-char (point-max))
-      (insert "** Today's Tasks\n:PROPERTIES:\n:CATEGORY: pers\n:END:\n")
-      (insert (format-time-string "<%Y-%m-%d>\n"))))
-  (job/org-add-tags-today)
-  (org-todo "TODO")
-  (org-priority ?A)
-  (org-narrow-to-subtree)
-  (goto-char (point-max))
-  ;; old file
-  (other-window 1)
-  (org-narrow-to-subtree)
-  (goto-char (point-min))
-  (while (search-forward "- [ ] " nil t)
-    (let ((substring (thing-at-point 'line)))
-      (other-window 1)
-      (insert substring)
-      (other-window 1)
-      (backward-char 4)
-      (insert ">")))
-  (org-todo "DONE")
-  (widen)
-  (other-window 1)
-  (widen))
 
 
 (provide 'zettelkasten)
