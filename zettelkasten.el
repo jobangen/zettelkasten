@@ -83,37 +83,12 @@
   :group 'zettelkasten
   :type 'integer)
 
-(defcustom zettelkasten-context-filter-list '()
-  "List of context filter"
-  :group 'zettelkasten
-  :type 'list)
 
 (defcustom zettelkasten-org-agenda-integration nil
   "If non-nil, add zettel with todos to `org-agenda-files'"
   :type 'boolean)
 
-
-(defun zettelkasten-context-work-fun (entry)
-  (and (not (member "journal" (plist-get entry :collections)))
-       (not (member "@Rezept" (plist-get entry :descriptors)))
-       (not (member "priv" (plist-get entry :collections)))))
-
-(setq zettelkasten-context-filter-list
-      '(("All" . (lambda (entry) t))
-        ("Work" . zettelkasten-context-work-fun)))
-
-(defvar zettelkasten-context-filter '("All" . (lambda (entry) t)))
-
 (defvar zettelkasten-capture-state nil)
-
-;;;###autoload
-(defun zettelkasten-set-context-filter ()
-  (interactive)
-  (let* ((completions zettelkasten-context-filter-list)
-         (filter
-          (assoc (completing-read "Filter: " completions) completions)))
-    (setq zettelkasten-context-filter filter)))
-
 
 ;; Creation and (re)naming of zettel
 (push '("z" "Zettel append" plain
@@ -1127,7 +1102,7 @@
   ;; TODO: filter
   (interactive)
   (ivy-read
-   (format "Zettel [%s]: " (car zettelkasten-context-filter))
+   (format "Zettel: ")
    (if nodes
        (zettelkasten-db-title-filename-nodes)
      (zettelkasten-db--title-filename))
@@ -1166,7 +1141,7 @@
   ;;                                   :from collection]))))))
 
   (ivy-read
-   (format "Zettel [%s]: " (car zettelkasten-context-filter))
+   (format "Zettel: ")
    (zettelkasten--get-collection-zettel)
    :preselect "Inbox"
    :action
@@ -1528,7 +1503,6 @@
 
   ("p" zettelkasten-capture-push "Push Link" :column "Zettelkasten")
   ("P" (zettelkasten-capture-push t) "Push Heading")
-  ("f" zettelkasten-set-context-filter "Set filter")
   ("D" zettelkasten-replace-descriptor "Replace Desc.")
   ("I" zettelkasten-info "Info")
 
