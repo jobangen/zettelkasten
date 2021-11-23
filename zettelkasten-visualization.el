@@ -46,7 +46,8 @@ Comparison is done with `equal'."
                  :from edges
                  :where (not (in predicate ["dct:language"
                                             "time:intervalDuring"
-                                            "rdf:type"]))
+                                            "rdf:type"
+                                            "time:year"]))
                  :and (in subject $v1)
                  :or (in object $v2)]
                 (vconcat nodes) (vconcat nodes))))))
@@ -56,6 +57,42 @@ Comparison is done with `equal'."
                                       :where (in zkid $v1)
                                       :or (in label $v2)]
                                      (vconcat nodes) (vconcat nodes)))))
+
+
+(defun zettelkasten-db--traverse-graph (anchor_id depth)
+  "Takes anchor_id and depth, traverses graph and returns list of edges."
+
+  (zettelkasten-db-query
+   (format "
+WITH RECURSIVE
+graph_cte (subject, object, lvl) AS (
+  SELECT subject, object, 1
+  FROM v_edges_ids_undir
+  WHERE \"subject\" == '\"%s\"'
+  --
+  UNION ALL
+  --
+  SELECT nxt.subject, nxt.object, lvl+1 AS lvl2
+  FROM v_edges_ids_undir nxt
+    JOIN graph_cte prv
+      ON nxt.subject = prv.object
+   WHERE lvl2 <= %s
+)
+SELECT subject, object, lvl FROM graph_cte ORDER by lvl;"
+           anchor_id depth)))
+
+
+(defun zettelkasten-db--graph-traversal-test (anchor depth)
+  (let ((data (zettelkasten-db--traverse-graph anchor depth)))
+    (switch-to-buffer-other-window "*Test*")
+    (erase-buffer)
+    (dolist (row data)
+      (insert (format "%s\n" row)))))
+
+
+
+;; (zettelkasten-db--graph-traversal-test "2021-05-30" 3)
+
 
 (defun zettelkasten-vis-add-nodes (ids)
   (let ((zettel-sel
@@ -144,10 +181,11 @@ Comparison is done with `equal'."
          (outfile "/home/job/Dropbox/db/zk/zettel/img/vis.pdf")
          (root (buffer-file-name))
          (root-title (s-replace-all '(("&" . "\\&")
-                                  ("{" . "\\{") ("}" . "\\}")
-                                  ("\\" . ""))
-                                (zettelkasten--extract-title)))
+                                      ("{" . "\\{") ("}" . "\\}")
+                                      ("\\" . ""))
+                                    (zettelkasten--extract-title)))
          (depth (read-string "Depth: " "3"))
+         (edges )
          (nodes (zettelkasten-vis-buffer-nodes root (string-to-number depth))))
     (with-temp-file pyfile
       (progn
@@ -180,18 +218,6 @@ Comparison is done with `equal'."
   (interactive)
   (let* ((nodes (caar (zettelkasten-db-query [:select (funcall count id)
                                               :from nodes])))
-         ;; (nodes-txt
-         ;;  (caar (zettelkasten-db-query [:select (funcall count :distinct filename)
-         ;;                                :from collection
-         ;;                                :where (= collection "txt")])))
-         ;; (nodes-index
-         ;;  (caar (zettelkasten-db-query [:select (funcall count :distinct filename)
-         ;;                                :from collection
-         ;;                                :where (= collection "index")])))
-         ;; (nodes-content
-         ;;  (caar (zettelkasten-db-query [:select (funcall count :distinct filename)
-         ;;                                :from collection
-         ;;                                :where (= collection "content")])))
          (nodes-proj
            (caar (zettelkasten-db-query [:select (funcall count :distinct id)
                                          :from nodes
