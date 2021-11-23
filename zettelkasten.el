@@ -1297,38 +1297,6 @@
   (zettelkasten-rfloc zettelkasten-inbox-file "Trash")
   (zettelkasten-inbox-process))
 
-;; TODO: subitems, 
-;;;###autoload
-(defun zettelkasten-create-index-topic ()
-  (interactive)
-  (let* ((zettel-1
-          (zettelkasten-db-query [:select [filename title] :from index
-                                          :where (= entry "t")]))
-         (zettel-2
-          (zettelkasten-db-query [:select [filename entry title] :from index
-                                          :where (not (= entry "t"))])))
-    (switch-to-buffer-other-window "*zettelkasten-index*")
-    (erase-buffer)
-    (insert (format "#+TITLE: Zettelkasten index\n\n"))
-    (dolist (row zettel-1)
-      (let ((fname (car row))
-            (title (cadr row)))
-        (insert (format "- [[file:%s][%s]]\n" fname title))))
-    (dolist (row zettel-2)
-      (let ((fname (car row))
-            (index (cadr row))
-            (title (caddr row)))
-        (goto-char (point-min))
-        (while (search-forward (format "[%s]]" index) nil t)
-          (end-of-line)
-          (newline)
-          (insert (format "  - [[file:%s][%s]]" fname title)))))
-    (org-mode)
-    (previous-line)
-    (ignore-errors
-      (org-sort-list t ?a))))
-
-
 
 ;;;###autoload
 (defun zettelkasten-zettel-rename ()
