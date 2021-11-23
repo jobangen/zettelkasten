@@ -1153,48 +1153,6 @@
 
 
 
-(defhydra hydra-zettelkasten (:color blue)
-  "Zettelkasten"
-  ("C-ä" zettelkasten-open-zettel "Open Zettel" :column "Open")
-  ("Ä" (zettelkasten-open-zettel t) "Open Nodes")
-  ("R" zettelkasten-open-zettel-random "Open random")
-  ("ä" zettelkasten-open-zettel-collection "Open collection")
-  ("d" zettelkasten-open-zettel-descriptor "Open descriptor")
-  ("s" zettelkasten-open-semantic "Open semantic")
-  ("jw" zettelkasten-journal-weekly-file "Weekly file")
-
-  ("C-r" zettelkasten-inbox-process (format "Process inbox [%s]" 5) :color red :column "Inbox")
-  ("b" zettelkasten-inbox-bury "Bury" :color red)
-  ("t" zettelkasten-inbox-trash "Trash" :color red)
-
-  ("l" zettelkasten-insert-link-at-point "Link" :column "Edit")
-  ("L" zettelkasten-insert-link-loop "Link loop")
-
-  ("p" zettelkasten-capture-push "Push Link" :column "Zettelkasten")
-  ("P" (zettelkasten-capture-push t) "Push Heading")
-  ("D" zettelkasten-replace-descriptor "Replace Desc.")
-  ("I" zettelkasten-info "Info")
-
-  ("c" zettelkasten-zettel-add-collection "Add collection" :column "Zettel")
-  ("#" zettelkasten-zettel-add-descriptor "Add descriptor")
-  ("x" zettelkasten-zettel-add-index "Add Index")
-  ("i" zettelkasten-zettel-info "Info")
-  ("v" zettelkasten-vis-buffer "Visualize")
-  ("ü" zettelkasten-set-type-and-label "Set label and type")
-  ("o" zettelkasten-zettel-open-external "Open external")
-
-  ("hc" zettelkasten-headline-add-collection "Add collection" :column "Heading")
-  ("C-#" zettelkasten-headline-add-descriptor "Add descriptor")
-  ("r" zettelkasten-capture-refile "Refile")
-  ("+" zettelkasten-heading-to-node "Node")
-  ("hf" zettelkasten-headline-set-followup "Set followup")
-  ("hr" zettelkasten-headline-reset "Reset")
-  ("hz" zettelkasten-node-to-zettel "Zettel")
-
-  ("n" org-noter "noter" :column "Other")
-  ("u" zettelkasten-update-org-agenda-files "Update agenda")
-  ("q" nil "Quit"))
-
 ;;;###autoload
 (defun zettelkasten-rename-file ()
   (interactive)
