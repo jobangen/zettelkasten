@@ -665,13 +665,13 @@ Options: `immediate' and `when-idle'."
   "Returns list of lists: title, filename, zkid only for files."
   (if filenames
       (zettelkasten-db-query [:select [title filename zkid]
-                                      :from nodes
-                                      :where (in filename $v1)
-                                      :and (= type "file")]
+                              :from nodes
+                              :where (in filename $v1)
+                              :and (= type "file")]
                              (vconcat filenames))
     (zettelkasten-db-query [:select [title filename zkid]
-                                    :from nodes
-                                    :where (= type "file")])))
+                            :from nodes
+                            :where (= type "file")])))
 
 (defun zettelkasten-db-title-filename-nodes ()
   "Returns list of lists: title [file-name-base], filename, zkid for all nodes."
