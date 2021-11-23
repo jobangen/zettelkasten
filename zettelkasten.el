@@ -79,7 +79,7 @@
   :type '(string))
 
 (defcustom zettelkasten-descriptor-cycle-threshold 5
-  "Threshold for remaining Zettel, to breaks the selection cycle"
+  "Threshold for remaining Zettel to break the selection cycle"
   :group 'zettelkasten
   :type 'integer)
 
