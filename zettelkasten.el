@@ -91,7 +91,7 @@
 (defvar zettelkasten-capture-state nil)
 
 ;; Creation and (re)naming of zettel
-(push '("z" "Zettel append" plain
+(push '("z" "Zettel inbox" plain
         (file+headline zettelkasten-inbox-file "Inbox")
         "\n** TODO :refile:zkt:
 :PROPERTIES:
@@ -118,19 +118,6 @@
                   (expand-file-name
                    (concat zettelkasten-zettel-directory
                            time-string "-" name ".org")))))
-        (function zettelkasten-zettel-template)
-        :immediate-finish t
-        :jump-to-captured t)
-      org-capture-templates)
-
-(push '("e" "Zettel ephemera" plain
-        (file (lambda ()
-                (let ((name (or zettel-capture-filename (read-string "Name: "))))
-                  (expand-file-name
-                   (concat zettelkasten-zettel-directory "/eph/"
-                           (format-time-string "%Y-%m-%d-%H%M-")
-                           name
-                           ".org")))))
         (function zettelkasten-zettel-template)
         :immediate-finish t
         :jump-to-captured t)
