@@ -138,6 +138,7 @@
    (s-chop-suffix "-" (s-left 59 (s-downcase title)))))
 
 (defun zettelkasten--get-all-files ()
+  "Return all files in zettelkasten-dir recursively."
   (directory-files-recursively zettelkasten-zettel-directory "org$"))
 
 ;;;###autoload
