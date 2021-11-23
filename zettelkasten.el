@@ -1195,39 +1195,21 @@
   ("q" nil "Quit"))
 
 ;;;###autoload
-;;;###autoload
-(defun zettelkasten-zettel-rename ()
+(defun zettelkasten-rename-file ()
   (interactive)
   (let* ((old (buffer-file-name))
          (new (read-string "New name: " old)))
-    (zettelkasten-db-query [:delete-from files
-                            :where (= filename $s1)]
-                           old)
     (zettelkasten-db-query [:delete-from nodes
                             :where (= filename $s1)]
                            old)
     (zettelkasten-db-query [:delete-from edges
                             :where (= filename $s1)]
                            old)
-    (zettelkasten-db-query [:delete-from id
-                            :where (= filename $s1)]
-                           old)
-    (zettelkasten-db-query [:delete-from link
-                            :where (= filename $s1)]
-                           old)
-    (zettelkasten-db-query [:delete-from index
-                            :where (= filename $s1)]
-                           old)
-    (zettelkasten-db-query [:delete-from descriptor
-                            :where (= filename $s1)]
-                           old)
-    (zettelkasten-db-query [:delete-from collection
-                            :where (= filename $s1)]
-                           old)
     (rename-file old new)
     (kill-buffer (current-buffer))
     (find-file new)))
 
+;;;###autoload
 (defun zettelkasten-delete-file (&optional filename)
   (interactive)
   (let ((filename (file-truename (or filename (buffer-file-name)))))
