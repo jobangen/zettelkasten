@@ -61,7 +61,6 @@
   :group 'zettelkasten
   :type 'string)
 
-
 (defun zettelkasten-zettel-template ()
   "#+TITLE: 
 #+DATE: %U
@@ -82,7 +81,6 @@
   "Threshold for remaining Zettel to break the selection cycle"
   :group 'zettelkasten
   :type 'integer)
-
 
 (defcustom zettelkasten-org-agenda-integration nil
   "If non-nil, add zettel with todos to `org-agenda-files'"
@@ -158,7 +156,6 @@
         (zettelkasten-set-type type)
       (zettelkasten-set-type))
     (save-buffer)))
-
 
 ;;; Open from Zettel
 (org-link-set-parameters "zk" :follow #'org-zettelkasten-open)
@@ -688,7 +685,6 @@
   (let ((zk-id (org-entry-get nil "CUSTOM_ID")))
     (unless (and zk-id (stringp zk-id) (string-match "\\S-" zk-id))
       (let* ((myid
-
               (or prov-id
                   (completing-read
                    "ID: "
