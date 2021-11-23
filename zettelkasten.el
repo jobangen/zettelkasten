@@ -201,13 +201,6 @@
 (org-link-set-parameters "zk" :export 'zettelkasten-org-zk-export)
 
 
-;;; https://emacs.stackexchange.com/questions/21713/how-to-get-property-values-from-org-file-headers
-;;; refactor!
-(defun org-global-props (&optional property buffer)
-  "Get the alists of global org properties of current buffer."
-  (unless property (setq property "PROPERTY"))
-  (with-current-buffer (or buffer (current-buffer))
-    (org-element-map (org-element-parse-buffer) 'keyword (lambda (el) (when (string-match property (org-element-property :key el)) el)))))
 
 (defun zettelkasten-flat-predicates ()
   (delete-dups (-flatten zettelkasten-predicates)))
