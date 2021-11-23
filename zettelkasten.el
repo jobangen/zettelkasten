@@ -1850,35 +1850,5 @@ Turning on this mode runs the normal hook `zettelkasten-capture-mode-hook'."
   (widen))
 
 
-
-
-;; (zettelkasten-db-query
-;;            [:select :distinct [collection]
-;;                     :from collection
-;;                     :where (in collection ["index" "content"])])
-
-;; (zettelkasten-db-query
-;;  [:select [title files:filename collection]
-;;           :from collection
-;;           :left-outer-join files
-;;           :on (= collection:filename files:filename)
-;;           :where (= collection $s1)
-;;           ] "content")
-
-
-;; (zettelkasten-db-query [:select [e1:object e2:object e3:object]
-;;                         :from edges e
-;;                         :left-join edges e1 :on (= e:subject e1:subject)
-;;                         :left-join edges e2 :on (= e:subject e2:subject)
-;;                         :left-join edges e3 :on (= e:subject e3:subject)
-;;                         :where (= e:predicate "rdf:type")
-;;                         :and (= e:object "zkt:Wandern")
-;;                         :and (= e1:predicate "time:intervalDuring")
-;;                         :and (= e2:predicate "time:hours")
-;;                         :and (= e3:predicate "zkt:distanceKM")
-;;                         :order-by e1:object
-;;                         ])
-
-
 (provide 'zettelkasten)
 ;;; zettelkasten.el ends here
