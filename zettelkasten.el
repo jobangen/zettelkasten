@@ -161,12 +161,9 @@
   (interactive)
   (let ((zettel-title
          (or title (read-string "Title: "))))
-    (setq zettel-capture-filename
-          (zettelkasten--title-to-fname zettel-title))
     (org-capture nil "Z")
     (end-of-line)
     (insert zettel-title)
-    (setq zettel-capture-filename nil)
     (if type
         (zettelkasten-set-type type)
       (zettelkasten-set-type))
@@ -179,8 +176,6 @@
   (let* ((path (nreverse (split-string path "::")))
          (target (car path))
          (target-label (concat "%" target " %")))
-    (when zettelkasten-capture-state
-      (kill-current-buffer))
     (find-file (caar (zettelkasten-db-query
                       [:select filename
                        :from nodes
@@ -190,9 +185,7 @@
                       target target target-label)))
     (goto-char (point-min))
     (search-forward target nil t)
-    (ignore-error (org-back-to-heading)))
-  (when zettelkasten-capture-state
-    (zettelkasten-capture-mode)))
+    (ignore-error (org-back-to-heading))))
 
 (defun zettelkasten-flat-predicates ()
   (delete-dups (-flatten zettelkasten-predicates)))
