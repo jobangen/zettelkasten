@@ -407,16 +407,6 @@
       (org-set-property "CUSTOM_ID" zk-id))
     zk-id))
 
-;;;###autoload
-(defun zettelkasten-insert-link-heading-at-point (&optional custom-id)
-  (interactive)
-  (if custom-id
-      (insert (format "[[zk:%s][%s]]"
-                      custom-id
-                      (completing-read "Description: ")))
-    (setq zettelkasten-capture-state 'link-heading)
-    (zettelkasten-capture)))
-
 ;; Dirs and Queries
 ;;;###autoload
 (defun zettelkasten-open-dir ()
