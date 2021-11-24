@@ -194,24 +194,6 @@
   (when zettelkasten-capture-state
     (zettelkasten-capture-mode)))
 
-;;; TODO: add support for exporting links to headlines
-(defun zettelkasten-org-zk-export (path desc format)
-  "Format zk links for export."
-  (let* ((filename
-          (caar (zettelkasten-db-query [:select filename :from id
-                                                :where (= zkid $s1)]
-                                       path)))
-         (html-name
-          (s-replace-all '(("/home/job/Dropbox/db/zk/zettel/" . "")
-                           (".org" . ".html"))
-                         (plist-get entry :file))))
-    (when (eq format 'html)
-      (format "<a href=\"./%s\">%s</a>"
-              html-name
-              desc))))
-
-(org-link-set-parameters "zk" :export 'zettelkasten-org-zk-export)
-
 (defun zettelkasten-flat-predicates ()
   (delete-dups (-flatten zettelkasten-predicates)))
 
