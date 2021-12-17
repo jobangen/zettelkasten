@@ -63,24 +63,6 @@ Options: `immediate' and `when-idle'."
 (defconst zettelkasten-db--schemata
   '((capture [(id integer :primary-key)
               feed date priority])
-    (files [(filename :unique :primary-key)
-            (title :not-null)
-            todo
-            (modtime :not-null)
-            (hash :non-null)])
-    (id [(id integer :primary-key)
-         (filename :not-null)
-         (fileid :not-null)
-         (zkid :unique :not-null)])
-    (link [(id integer :primary-key)
-           (filename :not-null)
-           (linkid :not-null)])
-    (index [(id integer :primary-key)
-            filename entry title])
-    (descriptor [(id integer :primary-key)
-                 filename descriptor])
-    (collection [(id integer :primary-key)
-                 filename collection])
     (meta [(filename :unique :primary-key)
            (hash :non-null)])
     (nodes [(id integer :primary-key)
@@ -91,17 +73,8 @@ Options: `immediate' and `when-idle'."
     (edges [(id integer :primary-key)
             filename subject predicate object])))
 
-
-;; (zettelkasten-db-query [:create-table files
-;;                                       ([(filename :unique :primary-key)
-;;                                         (title :not-null)
-;;                                         (id :not-null)
-;;                                         (modtime :not-null)])])
-
-;; files
-;; filename, title, id, modification-time
-
 (defun zettelkasten-db--initialize (db)
+  "Initialize DB with schema."
   (emacsql-with-transaction db
     (dolist (schema zettelkasten-db--schemata)
       (emacsql db [:create-table-if-not-exists $i1 $S2]
@@ -123,24 +96,14 @@ Options: `immediate' and `when-idle'."
   (zettelkasten-db--get-connection))
 
 (defun zettelkasten-db-query (sql &rest args)
+  "SQL and ARGS are passed to `zettelkasten-db'."
   (apply #'emacsql (zettelkasten-db) sql args))
 
 ;;;###autoload
 (defun zettelkasten-db-reset-cache ()
+  "Reset cache by dropping tables"
   (interactive)
   (ignore-errors
-    (zettelkasten-db-query [:drop-table files])
-    (message "Dropped table files")
-    (zettelkasten-db-query [:drop-table id])
-    (message "Dropped table id")
-    (zettelkasten-db-query [:drop-table link])
-    (message "Dropped table link")
-    (zettelkasten-db-query [:drop-table index])
-    (message "Dropped table index")
-    (zettelkasten-db-query [:drop-table descriptor])
-    (message "Dropped table descriptor")
-    (zettelkasten-db-query [:drop-table collection])
-    (message "Dropped table collection")
     (zettelkasten-db-query [:drop-table meta])
     (message "Dropped table meta")
     (zettelkasten-db-query [:drop-table nodes])
@@ -190,7 +153,7 @@ Options: `immediate' and `when-idle'."
     (split-string
      (zettelkasten-extract-value "INDEX" element) "\"\s\"" t "\"")))
 
-(defun zettelkasten--process-subjects (subjects)
+(defun zettelkasten--process-chain (subjects)
   (delete-dups
    (-flatten
     (mapcar
@@ -254,23 +217,24 @@ Options: `immediate' and `when-idle'."
 
 
 (defun zettelkasten-db--extract-collections-file (filename element)
-  "Extracts collections, processes them and return list of vectors"
+  "Extract collections for FILENAME using ELEMENT and return list of vectors."
   (let ((collections
          (zettelkasten-extract-value "COLLECTION" element)))
     (when collections
-      (let ((collections-proc (zettelkasten--process-subjects
-                            (split-string collections))))
+      (let ((collections-proc (zettelkasten--process-chain
+                               (split-string collections))))
         (mapcar
          (lambda (collection)
            (vector nil
                    filename
                    (zettelkasten--filename-to-id filename)
-                   "prov:memberOf"
+                   zettelkasten-collection-predicate
                    collection))
          collections-proc)))))
 
 (defun zettelkasten-db--extract-collections-headings (filename element)
-  "Extracts headline-collections, processes them and return list of vectors"
+  "Extract collection for heading in FILENAME an return list of vectors.
+Use ELEMENT to get properties."
   (-flatten
    (org-element-map element 'headline
      (lambda (headline)
@@ -279,24 +243,24 @@ Options: `immediate' and `when-idle'."
                (collections (org-element-property :COLLECTION headline)))
            (when collections
              (mapcar (lambda (collection)
-                       (vector nil filename customid "prov:memberOf" collection))
-                     (zettelkasten--process-subjects
+                       (vector nil filename customid zettelkasten-collection-predicate collection))
+                     (zettelkasten--process-chain
                       (split-string collections))))))))))
 
 
 (defun zettelkasten-db--extract-subjects-file (filename element)
-  "Extracts subjects, processes them and return list of vectors"
+  "Extract subjects for FILENAME using ELEMENT and return list of vectors."
   (let ((subjects
          (zettelkasten-extract-value "DESCRIPTOR" element)))
     (when subjects
-      (let ((subjects-proc (zettelkasten--process-subjects
+      (let ((subjects-proc (zettelkasten--process-chain
                             (split-string subjects))))
         (mapcar
          (lambda (subject)
            (vector nil
                    filename
                    (zettelkasten--filename-to-id filename)
-                   "skos:subject"
+                   zettelkasten-descriptor-predicate
                    subject))
          subjects-proc)))))
 
@@ -310,8 +274,12 @@ Options: `immediate' and `when-idle'."
                (subjects (org-element-property :DESCRIPTOR headline)))
            (when subjects
              (mapcar (lambda (subject)
-                       (vector nil filename customid "skos:subject" subject))
-                     (zettelkasten--process-subjects
+                       (vector nil
+                               filename
+                               customid
+                               zettelkasten-descriptor-predicate
+                               subject))
+                     (zettelkasten--process-chain
                       (split-string subjects))))))))))
 
 
@@ -476,12 +444,13 @@ Options: `immediate' and `when-idle'."
                                col-vec)))))
 
 (defun zettelkasten-db--update-meta (filename)
+  ""
   (let ((hash (secure-hash 'sha1 (current-buffer))))
     (zettelkasten-db-query [:delete-from meta
-                            :where (= filename $s1)]
+                                         :where (= filename $s1)]
                            filename)
     (zettelkasten-db-query [:insert :into meta
-                            :values $v1]
+                                    :values $v1]
                            (vector filename hash))))
 
 (defun zettelkasten-db--update-nodes (filename element)
@@ -685,7 +654,6 @@ Options: `immediate' and `when-idle'."
     [:select [title filename zkid]
              :from nodes])))
 
-
 (defun zettelkasten-db--values-descriptor (&optional files)
   "Returns list of disctinct values for subject."
   (if files
@@ -693,13 +661,14 @@ Options: `immediate' and `when-idle'."
        (zettelkasten-db-query [:select :distinct [object]
                                :from edges
                                :where (in filename $v1)
-                               :and (= predicate "skos:subject")]
-                              (vconcat files)))
+                               :and (= predicate $s2)]
+                              (vconcat files) zettelkasten-descriptor-predicate))
     (-flatten
      (zettelkasten-db-query [:select :distinct [object]
                              :from edges
-                             :where (= predicate "skos:subject")
-                             :or (= predicate "skos:primarySubject")]))))
+                             :where (= predicate $s1)
+                             :or (= predicate "skos:primarySubject")]
+                            zettelkasten-descriptor-predicate))))
 
 (defun zettelkasten-db--files-matching-descriptor (&optional input-files)
   "Select descriptor and return matching zettel."
@@ -708,7 +677,7 @@ Options: `immediate' and `when-idle'."
            (format "Subject [%s]: " (when input-files (safe-length input-files)))
            (if input-files
                (append (zettelkasten-db--values-descriptor input-files)
-                       '("Break"))
+                       '("#Break#"))
              (zettelkasten-db--values-descriptor))))
          (output-files
           (if input-files
@@ -716,17 +685,21 @@ Options: `immediate' and `when-idle'."
                          [:select :distinct [filename]
                           :from edges
                           :where (in filename $v1)
-                          :and (= predicate "skos:subject")
-                          :and (= object $s2)
+                          :and (= predicate $s2)
+                          :and (= object $s3)
                           ]
-                         (vconcat input-files) subject))
+                         (vconcat input-files)
+                         zettelkasten-descriptor-predicate
+                         subject))
             (-flatten
              (zettelkasten-db-query [:select :distinct [filename]
                                      :from edges
                                      :where (= object $s1)
-                                     :and (= predicate "skos:subject")]
-                                    subject)))))
-    (if (string= subject "Break")
+                                     :and (= predicate $s2)]
+                                    subject
+                                    zettelkasten-descriptor-predicate
+                                    )))))
+    (if (string= subject "#Break#")
         input-files
       (if (<= (safe-length output-files) zettelkasten-descriptor-cycle-threshold)
           output-files
