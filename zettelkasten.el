@@ -388,7 +388,7 @@ Used in `zettelkasten--filename-to-id' to process last part of filename."
 
 (defun zettelkasten-heading-set-relation-to-context (&optional predicate)
   "Set relate of heading to parent resource. Use PREDICATE if provided."
-  (let* ((predicate (or pred
+  (let* ((pred (or predicate
                         (completing-read
                          "Predicate: "
                          (zettelkasten-flat-predicates)
@@ -399,7 +399,7 @@ Used in `zettelkasten--filename-to-id' to process last part of filename."
                                           :from nodes
                                           :where (= filename $s1)]
                                          (buffer-file-name))))
-         (turtle (format "%s::%s" predicate target)))
+         (turtle (format "%s::%s" pred target)))
     (org-set-property "TURTLE" turtle)))
 
 ;;;###autoload
