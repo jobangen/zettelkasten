@@ -53,6 +53,13 @@ Options: `immediately' and `when-idle'."
   :type 'list
   :group 'zettelkasten)
 
+(defcustom zettelkasten-db-emacsql-lib 'emacsql-sqlite
+  "Emacsql library to use. Options: emacsql-sqlite, emacsql-sqlite3 "
+  :type 'symbol
+  :group 'zettelkasten)
+
+(require zettelkasten-db-emacsql-lib)
+
 (defvar zettelkasten-db-dirty nil
   "Zettel that are to be updated. List of filenames.")
 
@@ -146,7 +153,10 @@ SELECT subject, predicate, object FROM edges_inferred")
                (emacsql-live-p (zettelkasten-db--get-connection)))
     (make-directory (file-name-directory zettelkasten-db-file) t)
     (let* ((db-exists (file-exists-p zettelkasten-db-file))
-           (conn (emacsql-sqlite zettelkasten-db-file)))
+           (conn ((if (eq zettelkasten-db-emacsql-lib 'emacsql-sqlite3)
+                      emacsql-sqlite3
+                    emacsql-sqlite)
+                  zettelkasten-db-file)))
       (set-process-query-on-exit-flag (emacsql-process conn) nil)
       (puthash (file-truename zettelkasten-zettel-directory)
                conn
