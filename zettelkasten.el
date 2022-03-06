@@ -89,7 +89,7 @@
   :group 'zettelkasten
   :type 'list)
 
-(defcustom zettelkasten-descriptor-predicate "skos:subject"
+(defcustom zettelkasten-subject-predicate "skos:subject"
   "Default predicate for descriptor keyword and filetag."
   :group 'zettelkasten
   :type 'string)
@@ -109,7 +109,6 @@
   :group 'zettelkasten
   :type 'function)
 
-
 (defun zettelkasten-default-filename-to-id (filenamepart)
   "Default func to extract id from FILENAMEPART.
 Used in `zettelkasten--filename-to-id' to process last part of filename."
@@ -124,6 +123,14 @@ Used in `zettelkasten--filename-to-id' to process last part of filename."
            (s-chop-suffix ".org" filename))))
     (funcall zettelkasten-filename-to-id-func fname-chop)))
 
+(defun zettelkasten-journal-capture ()
+  (let* ((target (org-read-date))
+         (time (org-read-date nil t target))
+         (path (concat org-journal-dir target ".org")))
+    (unless (file-exists-p path)
+       (org-journal-new-entry t time))
+    path))
+
 ;; Creation and (re)naming of zettel
 (push '("z" "Zettel inbox" plain
         (file+headline zettelkasten-inbox-file "Inbox")
@@ -135,14 +142,20 @@ Used in `zettelkasten--filename-to-id' to process last part of filename."
 %i")
       org-capture-templates)
 
+(push '("J" "Zettel Journal" plain #'zettelkasten-journal-capture
+        "ev%?"
+        :immediate-finish t
+        :jump-to-captured t)
+      org-capture-templates)
+
 (push '("Z" "Zettel" plain
         (file (lambda ()
                 (let ((name (or zettel-capture-filename (read-string "Name: ")))
                       (time-string (format-time-string
                                     zettelkasten-file-id-format)))
                   (while (zettelkasten-db-query [:select [zkid]
-                                                 :from nodes
-                                                 :where (= zkid $s1)]
+                                                         :from nodes
+                                                         :where (= zkid $s1)]
                                                 time-string)
                     (let ((base-string (s-left 11 time-string))
                           (hmin (+ 1 (string-to-number (s-right 4 time-string)))))
@@ -181,8 +194,8 @@ Used in `zettelkasten--filename-to-id' to process last part of filename."
 (defun zettelkasten-new-zettel (&optional title type)
   "Capture a Zettel with `org-capture' and use TITLE and TYPE."
   (interactive)
-  (let ((zettel-title
-         (or title (read-string "Title: "))))
+  (let ((zettel-title (or title
+                          (read-string "Title: "))))
     (setq zettel-capture-filename
           (zettelkasten--title-to-fname zettel-title))
     (org-capture nil "Z")
@@ -192,6 +205,7 @@ Used in `zettelkasten--filename-to-id' to process last part of filename."
     (if type
         (zettelkasten-set-type type)
       (zettelkasten-set-type))
+    (zettelkasten-set-label)
     (save-buffer)))
 
 ;;; Open from Zettel
@@ -200,15 +214,12 @@ Used in `zettelkasten--filename-to-id' to process last part of filename."
 (defun org-zettelkasten-open (path)
   "Open file at PATH."
   (let* ((path (nreverse (split-string path "::")))
-         (target (car path))
-         (target-label (concat "%" target " %")))
+         (target (car path)))
     (find-file (caar (zettelkasten-db-query
                       [:select filename
-                               :from nodes
-                               :where (= zkid $s1)
-                               :or (= label $s2)
-                               :or (like label $s3)] ;; multiple labels?
-                      target target target-label)))
+                       :from nodes
+                       :where (= zkid $s1)]
+                      target)))
     (goto-char (point-min))
     (search-forward target nil t)
     (ignore-error (org-back-to-heading))))
@@ -217,16 +228,21 @@ Used in `zettelkasten--filename-to-id' to process last part of filename."
   "Return predicates as uniquified, flat list."
   (delete-dups (-flatten zettelkasten-predicates)))
 
+(defun zettelkasten--set-keyword (keyword value)
+  "Set KEYWORD to VALUE."
+  (save-excursion
+    (zettelkasten--ensure-keyword keyword)
+    (delete-region (point) (line-end-position))
+    (insert " " value)))
 
 ;;;###autoload
 (defun zettelkasten-set-type (&optional type)
   "Set TYPE for zettel."
   (interactive)
-  (let ((type-sel (or type (completing-read "Type: "
-                                            (-flatten zettelkasten-classes)))))
-    (zettelkasten--zettel-ensure-keyword "RDF_TYPE")
-    (delete-region (point) (line-end-position))
-    (insert (format " %s" type-sel))))
+  (zettelkasten--set-keyword
+   "RDF_TYPE"
+   (or type
+       (completing-read "Type: " (-flatten zettelkasten-classes)))))
 
 ;;;###autoload
 (defun zettelkasten-set-type-headline (&optional type)
@@ -239,22 +255,72 @@ Used in `zettelkasten--filename-to-id' to process last part of filename."
                                            (-flatten zettelkasten-classes))))))
     (org-set-property "RDF_TYPE" type-sel)))
 
+(defun zettelkasten-edit-custom-id ()
+  (interactive)
+  (let* ((filename (buffer-file-name))
+         (element (org-element-parse-buffer))
+         (id-data (zettelkasten-get-property-or-keyword-upwards
+                   filename element "CUSTOM_ID"))
+         (title (zettelkasten--get-file-title))
+         (title-proc (s-replace-all '((" " . "-")
+                                      ("," . "")
+                                      ("." . ""))
+                                    title))
+         (id-old (caar id-data))
+         (id-entity (cadr id-data))
+         (id-new (read-string "Custom ID: " (or id-old
+                                                title-proc)))
+         (id-old-object (-flatten (zettelkasten-db-query
+                                   [:select :distinct [n:filename]
+                                    :from nodes n
+                                    :inner-join edges e
+                                    :on (= n:zkid e:subject)
+                                    :where (= object $s1)]
+                                   id-old))))
+    (save-excursion
+      ;; update id
+      (if (eq id-entity 'file)
+          (zettelkasten--set-keyword "CUSTOM_ID" id-new)
+        (org-set-property "CUSTOM_ID" id-new))
+
+      ;; update subjects, this file
+      (goto-char (point-min))
+      (while (search-forward (concat ":" id-old "::") nil t)
+        (replace-match (concat ":" id-new "::")))
+
+      ;; update objects, this and other files
+      (when id-old-object
+        (y-or-n-p (format "Zk: There are %s links using the old ID. Update?"
+                          (length id-old-object)))
+        (dolist (zettel id-old-object)
+          (find-file zettel)
+          (goto-char (point-min))
+          (while (search-forward (concat ":" id-old " ") nil t)
+            (replace-match (concat ":" id-new "")))
+          (goto-char (point-min))
+          (while (search-forward (concat ":" id-old "]") nil t)
+            (replace-match (concat ":" id-new "]")))
+          (save-buffer)
+          (unless (equal filename zettel)
+            (kill-buffer)))))))
+
+
 ;;;###autoload
 (defun zettelkasten-set-label (&optional label)
   "Set LABEL for zettel."
   (interactive)
-  (let* ((title (zettelkasten--extract-title))
+  (let* ((title (zettelkasten--get-file-title))
          (title-proc (s-replace-all '((" " . "-")
                                       ("," . "")
                                       ("." . ""))
-                                    (zettelkasten--extract-title)))
+                                    title))
          (label-old
-          (zettelkasten-extract-value "ZK_LABEL" (org-element-parse-buffer)))
-         (label-sel (or label (read-string "Label: " (or label-old title-proc)))))
+          (zettelkasten--get-keyword "CUSTOM_ID"))
+         (label-sel (or label
+                        (read-string "Custom ID: " (or label-old
+                                                       title-proc)))))
     (when (and label-sel (stringp label-sel) (string-match "\\S-" label-sel))
-      (zettelkasten--zettel-ensure-keyword "ZK_LABEL")
-      (delete-region (point) (line-end-position))
-      (insert (format " %s" label-sel)))))
+      (zettelkasten--set-keyword "CUSTOM_ID" label-sel))))
 
 ;;;###autoload
 (defun zettelkasten-set-type-and-label ()
@@ -265,140 +331,153 @@ Used in `zettelkasten--filename-to-id' to process last part of filename."
               (s-contains? "/jr/" (buffer-file-name)))
     (zettelkasten-set-label)))
 
+(defun zettelkasten--get-predicates-by-domain (subject-types)
+  "Get all predicates which domains match type in SUBJECT-TYPES."
+  (-flatten
+   (zettelkasten-db-query
+    [:select [name]
+     :from predicates
+     :where (in domain $v1)]
+    (vconcat subject-types))))
+
+(defun zettelkasten--get-ranges-of-predicates (predicates)
+  (-flatten
+   (zettelkasten-db-query
+    [:select [range]
+     :from predicates
+     :where (in name $v1)]
+    (vconcat predicates))))
+
+(defun zettelkasten--generalize-types (types)
+  (delete-dups
+   (mapcan
+    (lambda (type)
+      (zettelkasten--tree-parents-rec
+       type
+       zettelkasten-classes))
+    types)))
+
+(defun zettelkasten--format-info (format entries)
+  (mapcar
+   (lambda (entry)
+     (let ((title (car entry))
+           (filename (cadr entry))
+           (zkid (caddr entry)))
+       
+
+       ))
+   entries))
+
+
+(defun zettelkasten--format-zettel-info (entries)
+  "Format ENTRIES. Expects list of lists where (title filename zkid)."
+  (mapcar
+   (lambda (entry)
+     (let ((title (car entry))
+           (filename (cadr entry))
+           (zkid (caddr entry)))
+       (list
+        (format "%s [%s]"
+                (s-pad-right 120 " " (s-truncate 120 title))
+                (s-truncate 40 (file-name-base filename)))
+        zkid
+        title)))
+   entries))
+
+(defun zettelkasten--select-node (&optional type-constraints)
+  (save-excursion
+    (let ((object nil))
+      (ivy-read "Link Zettel: "
+                (zettelkasten--format-zettel-info
+                 (if type-constraints
+                     (zettelkasten-db-query
+                      [:select :distinct [n:title n:filename n:zkid]
+                               :from nodes n
+                               :inner-join edges e
+                               :on (= n:zkid e:subject)
+                               :where (= predicate "rdf:type")
+                               :and (in object $v1)]
+                      (vconcat type-constraints))
+                   (zettelkasten-db-query [:select [title filename zkid]
+                                           :from nodes])))
+                :action
+                (lambda (selection)
+                  (if (listp selection)
+                      (setq object (list (cadr selection) (caddr selection)))
+                    (if (s-starts-with? "val:" selection)
+                        (setq object (list (s-chop-prefix "val:" selection)
+                                           (s-chop-prefix "val:" selection)))
+                      (other-window 1)
+                      (zettelkasten-new-zettel selection) ;;todo
+                      (user-error "Error, because: %s" "new zettel!")))))
+      object)))
+
+(defun zettelkasten--build-link-triple (filename element)
+  "Build triple for link using FILENAME and ELEMENT."
+  (save-excursion
+    (let* ((subject (caar (zettelkasten-get-property-or-keyword-upwards
+                          filename element "CUSTOM_ID")))
+           (subject-types (car (zettelkasten-get-property-or-keyword-upwards
+                            filename element "RDF_TYPE")))
+           (types-generalized (zettelkasten--generalize-types
+                                subject-types))
+           (predicate-by-domain (zettelkasten--get-predicates-by-domain
+                                 types-generalized))
+           (predicate (completing-read "Predicate: " predicate-by-domain))
+           (predicate-range (zettelkasten--get-ranges-of-predicates
+                             (list predicate)))
+           (object-types (-flatten (zettelkasten--tree-children-rec
+                                    (car predicate-range) zettelkasten-classes)))
+           (object-id-title (zettelkasten--select-node object-types)))
+      (list subject predicate object-id-title))))
 
 ;;;###autoload
-(defun zettelkasten-insert-link-at-point (&optional link-predicate link-target)
-  "Insert semantic link at point. Use LINK-PREDICATE and LINK-TARGET if provieded."
+(defun zettelkasten-insert-link (&optional subject predicate object)
   (interactive)
-  (let* ((filename (buffer-file-name))
-         (element (org-element-parse-buffer))
-         (zk-id (org-entry-get nil "CUSTOM_ID"))
-         (zettel-target link-target)
-         ;; List of node types in heading or file
-         (node-types
-          (unless link-predicate
-            (save-excursion
-              (zettelkasten-get-property-or-filetag-upwards filename
-                                                            element
-                                                            "RDF_TYPE"))))
-         ;; List of types in hierarchy upwards
-         (node-hierarchy (unless link-predicate
-                           (delete-dups ;;todo?
-                            (mapcan
-                             (lambda (type)
-                               (zettelkasten--tree-parents-rec
-                                type
-                                zettelkasten-classes))
-                             node-types))))
-         (predicate-by-domain (unless link-predicate
-                                (remove
-                                 nil
-                                 (mapcar (lambda (entry)
-                                           (when (member (caadr entry)
-                                                         node-hierarchy)
-                                             (car entry)))
-                                         zettelkasten-predicate-domain-range))))
-         (predicate (or (when (stringp link-predicate)
-                          link-predicate)
-                        (completing-read "Predicate: "
-                                         (or link-predicate
-                                             predicate-by-domain))))
-         ;; List of possible target classes
-         (classes-by-pred-range (cadr (cadr (assoc
-                                             predicate
-                                             zettelkasten-predicate-domain-range))))
-         ;; List of classes including ones lower in class hierarchy
-         (target-classes (-flatten
-                          (mapcan (lambda (rangeitem)
-                                    (zettelkasten--tree-children-rec
-                                     rangeitem zettelkasten-classes))
-                                  classes-by-pred-range)))
-         (turtle (s-starts-with? ":TURTLE" (thing-at-point 'line t)))
-         (zettel
-          (save-excursion
-            (unless link-target
-              (ivy-read "Link Zettel: "
-                        (mapcar
-                         (lambda (node)
-                           (list
-                            (format "%s [%s]"
-                                    (s-pad-right 120 " " (s-truncate 120 (car node)))
-                                    (s-truncate 40 (file-name-base (cadr node))))
-                            (caddr node)))
-                         (if target-classes
-                             (let ((edges
-                                    (-flatten
-                                     (zettelkasten-db-query
-                                      [:select [subject]
-                                               :from edges
-                                               :where (= predicate "rdf:type")
-                                               :and (in object $v1)]
-                                      (vconcat target-classes)))))
-                               (zettelkasten-db-query [:select [title filename zkid]
-                                                               :from nodes
-                                                               :where (in zkid $v1)]
-                                                      (vconcat edges)))
-                           (zettelkasten-db-query [:select [title filename zkid]
-                                                           :from nodes])))
-                        :action
-                        (lambda (selection)
-                          (if (listp selection)
-                              (setq zettel-target (cadr selection))
-                            (if (s-starts-with? "val:" selection)
-                                (setq zettel-target selection)
-                              (other-window 1)
-                              (zettelkasten-new-zettel selection)
-                              (setq zettel-target filename))))))))
-         (zettel-id (if (s-starts-with? "val:" zettel-target)
-                        (s-chop-prefix "val:" zettel-target)
-                      (car
-                       (split-string
-                        (car
-                         (remove nil
-                                 (car (zettelkasten-db-query
-                                       [:select [label zkid]
-                                                :from nodes
-                                                :where (= zkid $s1)]
-                                       zettel-target))))))))
-         (zettel-title
-          (if (s-starts-with? "val:" zettel-target)
-              (s-chop-prefix "val:" zettel-target)
-            (caar (zettelkasten-db-query [:select title
-                                                  :from nodes
-                                                  :where (= zkid $s1)]
-                                         zettel-target)))))
-    (if predicate
-        (if (and zk-id (stringp zk-id) (string-match "\\S-" zk-id))
-            (if (equal turtle t)
-                (insert (format "%s::%s" predicate zettel-id))
-              (insert (format "[[zk:%s::%s::%s][%s]]"
-                              zk-id predicate zettel-id zettel-title)))
-          (insert (format "[[zk:%s::%s][%s]]"
-                          predicate zettel-id zettel-title)))
-      (insert (format "[[zk:%s][%s]]" zettel-id zettel-title)))))
+    (let* ((headingp (or (s-starts-with? ":" (thing-at-point 'line t))))
+           (triple (zettelkasten--build-link-triple
+                    (buffer-file-name) (org-element-parse-buffer)))
+           (subject (or subject (car triple)))
+           (predicate (or predicate (cadr triple)))
+           (object (or object (caddr triple)))
+           (object-id (car object))
+           (object-title (cadr object)))
+      (if headingp
+          (zettelkasten--add-to-property "TURTLE"
+                                         (concat predicate "::" object))
+        (insert (format "[[zk:%s::%s::%s][%s]]"
+                        subject predicate object-id object-title)))))
+
 
 ;;;###autoload
 (defun zettelkasten-insert-link-loop ()
   "Insert Links as a org-list."
   (interactive)
   (insert "- ")
-  (zettelkasten-insert-link-at-point)
+  (zettelkasten-insert-link)
   (newline)
   (zettelkasten-insert-link-loop))
 
+
 (defun zettelkasten-heading-set-relation-to-context (&optional predicate)
-  "Set relate of heading to parent resource. Use PREDICATE if provided."
-  (let* ((pred (or predicate
-                        (completing-read
-                         "Predicate: "
-                         (zettelkasten-flat-predicates)
-                         nil nil "dct:isPartOf")))
-         (target (completing-read
-                  "Target:"
-                  (zettelkasten-db-query [:select zkid
-                                          :from nodes
-                                          :where (= filename $s1)]
-                                         (buffer-file-name))))
+  "Set relation of heading to parent resource. Use PREDICATE if provided."
+  (let* ((filename (buffer-file-name))
+         (element (org-element-parse-buffer))
+         (pred (or predicate
+                   (completing-read
+                    "Predicate: "
+                    (zettelkasten-flat-predicates)
+                    nil nil "dct:isPartOf")))
+         (targets (append
+                   (list (list (zettelkasten--get-file-title element)
+                               (zettelkasten--get-file-id filename element)))
+                   (org-element-map element 'headline
+                     (lambda (headline)
+                       (let ((h-zkid (org-element-property :CUSTOM_ID headline)))
+                         (when h-zkid
+                           (list (org-element-property :raw-value headline) 
+                                 h-zkid)))))))
+         (target (cadr (assoc (completing-read "Target:" targets) targets)))
          (turtle (format "%s::%s" pred target)))
     (org-set-property "TURTLE" turtle)))
 
@@ -410,7 +489,7 @@ Used in `zettelkasten--filename-to-id' to process last part of filename."
   (zettelkasten-id-get-create prov-id)
   (zettelkasten-heading-set-relation-to-context predicate))
 
-(defun zettelkasten-id-get-create (&optional prov-id)
+(defun zettelkasten-id-get-create (&optional prov-id ret)
   "Select and set ID for heading. Use PROV-ID if proviede."
   (let ((zk-id (org-entry-get nil "CUSTOM_ID")))
     (unless (and zk-id (stringp zk-id) (string-match "\\S-" zk-id))
@@ -420,18 +499,19 @@ Used in `zettelkasten--filename-to-id' to process last part of filename."
               (or prov-id
                   (completing-read
                    "ID: "
-                   `(,(zettelkasten-extract-value "ZK_LABEL")
+                   `(,(zettelkasten--get-keyword "ZK_LABEL")
                      ,(concat "zk-" (s-chop-suffix ".org" (buffer-name)))
                      ,(file-name-base)
                      ,(concat "zk-" (s-left 17 (org-id-new)))))))
              (editid (read-string "Edit ID: " myid)))
         (setq zk-id editid))
-      (org-set-property "CUSTOM_ID" zk-id))
+      (unless ret
+        (org-set-property "CUSTOM_ID" zk-id)))
     zk-id))
 
 ;; Dirs and Queries
 
-(defun zettelkasten--zettel-ensure-keyword (keyword)
+(defun zettelkasten--ensure-keyword (keyword)
   "Make sure KEYWORD is present."
   (let ((key-format (format "#+%s:" keyword)))
     (goto-char (point-min))
@@ -449,7 +529,7 @@ Used in `zettelkasten--filename-to-id' to process last part of filename."
   "Sort descriptors alphabetically."
   (interactive "*")
   (text-mode)
-  (zettelkasten--zettel-ensure-keyword "DESCRIPTOR")
+  (zettelkasten--ensure-keyword "DESCRIPTOR")
   (end-of-line)
   (setq my-end (point))
   (beginning-of-line)
@@ -480,13 +560,11 @@ Used in `zettelkasten--filename-to-id' to process last part of filename."
                 (zettelkasten-db-query
                  [:select :distinct [object]
                   :from edges
-                  :where (in predicate ["skos:subject"
-                                        "skos:primarySubject"])])))))))
+                  :where (in predicate $v1)]
+                 (zettelkasten-predicate-hierachy
+                  zettelkasten-subject-predicate))))))))
     (unless (equal desc "#Break#")
-      (save-excursion
-        (zettelkasten--zettel-ensure-keyword "DESCRIPTOR")
-        (insert (concat " " desc))
-        (zettelkasten-sort-tags)))
+      (zettelkasten--add-to-keyword "DESCRIPTOR" desc))
     (unless (or descriptor (equal desc "#Break#"))
       (zettelkasten-zettel-add-descriptor))))
 
@@ -494,21 +572,16 @@ Used in `zettelkasten--filename-to-id' to process last part of filename."
 (defun zettelkasten-headline-add-descriptor ()
   "Add descriptor to current headline."
   (interactive)
-  (let* ((current
-          (split-string
-           (or (org-entry-get nil "DESCRIPTOR") "")))
-         (add
+  (let* ((add
           (completing-read
            "Descriptor [Headline]: "
            (-flatten
             (zettelkasten-db-query [:select :distinct [object]
-                                            :from edges
-                                            :where (= predicate "skos:subject")]))))
-         (join
-          (sort (append current (list add)) 'string<))
-         (string
-          (mapconcat 'identity join " ")))
-    (org-set-property "DESCRIPTOR" string))
+                                    :from edges
+                                    :where (in predicate $v1)]
+                                   (zettelkasten-predicate-hierachy
+                                    zettelkasten-subject-predicate))))))
+    (zettelkasten--add-to-property "DESCRIPTOR" add))
   (zettelkasten-headline-add-descriptor))
 
 ;;;###autoload
@@ -521,12 +594,12 @@ Used in `zettelkasten--filename-to-id' to process last part of filename."
   (kill-buffer))
 
 ;;;###autoload
-(defun zettelkasten-open-zettel (&optional nodes)
-  "Select and open zettel. Restrict selection to NODES if provided."
+(defun zettelkasten-open-zettel (&optional all-nodes)
+  "Select and open zettel. ALL-NODES includes headings."
   (interactive)
   (ivy-read
    (format "Zettel: ")
-   (if nodes
+   (if all-nodes
        (zettelkasten-db-title-filename-nodes)
      (zettelkasten-db--title-filename))
    :action
@@ -534,9 +607,10 @@ Used in `zettelkasten--filename-to-id' to process last part of filename."
      (if (listp selection)
          (progn
            (find-file (cadr selection))
-           (when nodes
-             (goto-char (point-min))
-             (search-forward (caddr selection) nil t)))
+           (goto-char (point-min))
+           (when all-nodes
+             (search-forward (caddr selection) nil t)
+             (org-back-to-heading)))
        (zettelkasten-new-zettel selection)))))
 
 ;;;###autoload
@@ -544,8 +618,8 @@ Used in `zettelkasten--filename-to-id' to process last part of filename."
   "Select descriptor and open resource that match."
   (interactive)
   (ivy-read
-   "Zettel: " (zettelkasten-db--title-filename
-               (zettelkasten-db--files-matching-descriptor))
+   "Zettel: " (zettelkasten-db-title-filename-nodes
+               (zettelkasten-db--nodes-with-descriptor))
    :action
    (lambda (selection)
      (find-file
@@ -583,7 +657,7 @@ Uses PATH-IN internally to return path."
   (vconcat
    (-flatten
     (zettelkasten--tree-children-rec predicate
-                             zettelkasten-predicates))))
+                                     zettelkasten-predicates))))
 
 (defun zettelkasten-db--nodes-semantic (&optional input-nodes)
   "Query resources by narrowing resources semantically. Start with INPUT-NODES if provided."
@@ -620,11 +694,10 @@ Uses PATH-IN internally to return path."
                                predicates)))))
            ;; match ids and label and return nodes
            (objects
-            (zettelkasten-db-query [:select :distinct [title zkid label]
+            (zettelkasten-db-query [:select :distinct [title zkid]
                                     :from nodes
-                                    :where (in zkid $v1)
-                                    :or (in label $v2)]
-                                   objects-edges objects-edges))
+                                    :where (in zkid $v1)]
+                                   objects-edges))
            ;; select object
            (object (cdr (assoc (completing-read "Object: " objects) objects)))
            ;; lookup all subjects that link to object with predicate
@@ -677,8 +750,8 @@ Uses PATH-IN internally to return path."
     ;; (search-forward (caddr selection) nil t)
     ))
 
-(defun zettelkasten-get-property-or-filetag-upwards (filename element property &optional skip)
-  "For ELEMENT of FILENAME get PROPERTY of next parent resource. SKIP one level if non nil."
+(defun zettelkasten-get-property-or-keyword-upwards (filename element property &optional skip)
+  "For ELEMENT of FILENAME get PROPERTY of next parent resource. SKIP one level if non-nil. Start at point."
   (when skip
     (outline-up-heading 1))
   (let ((return-value))
@@ -686,38 +759,36 @@ Uses PATH-IN internally to return path."
       (let ((prop-value (cdr (assoc property (org-entry-properties)))))
         (condition-case nil
             (if prop-value
-                (setq return-value (split-string prop-value))
+                (setq return-value (list (split-string prop-value) 'heading))
               (outline-up-heading 1))
           (error
            (if (equal property "CUSTOM_ID")
-               ;; corner case for ids and labes
-               (setq return-value (append
-                                   (ignore-errors
-                                     (split-string
-                                      (zettelkasten-extract-value "ZK_LABEL"
-                                                                  element)))
-                                   (list (zettelkasten--filename-to-id
-                                          filename))))
-             (setq return-value (split-string
-                                 (zettelkasten-extract-value
-                                  property
-                                  element))))))))
+               ;; corner case for ids and labels
+               (setq return-value
+                     (list
+                      (split-string
+                       (zettelkasten--get-file-id filename element))
+                      'file))
+             (setq return-value (list (split-string
+                                       (zettelkasten--get-keyword
+                                        property
+                                        element))
+                                      'file)))))))
     return-value))
 
 (defun zettelkasten--get-backlinks (filename)
-  "Files linking to nodes of FILENAME. Return list links."
-  (let* ((current-ids ;; gets next id upwards
-          (zettelkasten-get-property-or-filetag-upwards
-           filename
-           (org-element-parse-buffer)
-           "CUSTOM_ID"))
+  "Files linking to node at point in FILENAME. Return list links."
+  (let* ((zkid (caar (zettelkasten-get-property-or-keyword-upwards
+                      filename
+                      (org-element-parse-buffer)
+                      "CUSTOM_ID")))
          (backlinks
           (zettelkasten-db-query [:select [e:predicate n:title n:filename]
-                                  :from edges e
+                                  :from v_edges_union e
                                   :inner-join nodes n
                                   :on (= e:subject n:zkid)
-                                  :where (in object $v1)]
-                                 (vconcat current-ids)))
+                                  :where (= e:object $s1)]
+                                 zkid))
          (len (car (sort
                     (mapcar (lambda (link)
                               (length (car link)))
@@ -736,7 +807,7 @@ Uses PATH-IN internally to return path."
 
 ;;;###autoload
 (defun zettelkasten-open-backlink ()
-  "Select and open backlink."
+  "Select and open backlink to current node."
   (interactive)
   (let* ((zettel (zettelkasten--get-backlinks (buffer-file-name)))
          (selected (assoc (completing-read "Zettel: " zettel) zettel)))
@@ -757,7 +828,7 @@ Uses PATH-IN internally to return path."
           (zettelkasten-agenda-files
            (-flatten (zettelkasten-db-query
                       [:select [filename]
-                       :from nodes
+                       :from files
                        :where (= todo 't)]))))
       (setq org-agenda-files (append not-zettelkasten-agenda-files
                                      zettelkasten-agenda-files)))))
@@ -768,10 +839,10 @@ Uses PATH-IN internally to return path."
   (interactive)
   (let* ((old (buffer-file-name))
          (new (read-string "New name: " old)))
-    (zettelkasten-db-query [:delete-from nodes
+    (zettelkasten-db-query [:delete-from files
                             :where (= filename $s1)]
                            old)
-    (zettelkasten-db-query [:delete-from edges
+    (zettelkasten-db-query [:delete-from nodes
                             :where (= filename $s1)]
                            old)
     (rename-file old new)
@@ -787,21 +858,42 @@ Uses PATH-IN internally to return path."
       (zettelkasten-db-query [:delete-from nodes
                               :where (= filename $s1)]
                              filename)
-      (zettelkasten-db-query [:delete-from edges
+      (zettelkasten-db-query [:delete-from files
                               :where (= filename $s1)]
                              filename)
       (kill-current-buffer)
       (delete-file filename))))
 
-(defun zettelkasten-extract-value (keyword &optional element)
-  "Extract value of KEYWORD while using ELEMENT."
+(defun zettelkasten--get-keyword (keyword &optional element)
+  "Get value of KEYWORD using ELEMENT."
   (org-element-map
-      (or element (org-element-parse-buffer 'greater-element))
+      (or element
+          (org-element-parse-buffer 'greater-element))
       'keyword
     (lambda (kw)
       (if (string= (org-element-property :key kw) keyword)
           (org-element-property :value kw)))
     :first-match t))
+
+(defun zettelkasten--add-to-list (lst value)
+  "Add VALUE to LST and sort it."
+  (let* ((new (push value lst))
+         (sorted (sort (delete-dups new) #'string<)))
+    sorted))
+
+(defun zettelkasten--add-to-keyword (keyword value)
+  "Add VALUE to file KEYWORD."
+  (let* ((old (split-string (or (zettelkasten--get-keyword keyword) "")))
+         (new (zettelkasten--add-to-list old value))
+         (str (mapconcat 'identity new " ")))
+    (zettelkasten--set-keyword keyword str)))
+
+(defun zettelkasten--add-to-property (property value)
+  "Add VALUE to heading PROPERTY."
+  (let* ((old (split-string (or (org-entry-get nil property) "")))
+         (new (zettelkasten--add-to-list old value))
+         (str (mapconcat 'identity new " ")))
+    (org-set-property property str)))
 
 
 (provide 'zettelkasten)
