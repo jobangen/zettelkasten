@@ -31,7 +31,6 @@
 ;;
 ;;; Code:
 (require 'emacsql)
-;; (require 'emacsql-sqlite)
 
 (defcustom zettelkasten-db-file "~/.emacs.d/var/zettelkasten/zkdb.db"
   "Location of the zettelkasten database."
