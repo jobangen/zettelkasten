@@ -629,7 +629,7 @@ Used in `zettelkasten--filename-to-id' to process last part of filename."
   "Accepts string (KEY) and nested list (TREE)
 to return all children recursively."
   (when (consp tree)
-    (destructuring-bind (x . y) tree
+    (cl-destructuring-bind (x . y) tree
       (if (equal x key)
           tree ;; fct of comparing
         (or (zettelkasten--tree-children-rec key x)
@@ -640,7 +640,7 @@ to return all children recursively."
 Uses PATH-IN internally to return path."
   (let ((path (or path-in nil)))
     (when (consp tree)
-      (destructuring-bind (x . y) tree
+      (cl-destructuring-bind (x . y) tree
         (if (equal x key)
             path
           (if (listp x)
