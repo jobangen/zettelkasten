@@ -176,11 +176,13 @@ SELECT subject, predicate, object FROM edges_inferred")
     (message "Zk: dropping trigger: infer_edges_after_insert_edges")
     (zettelkasten-db-query
      "DROP TRIGGER IF EXISTS infer_edges_after_insert_edges")
-    (message "Zk: dropping trigger: v_edges_union")
+    (message "Zk: dropping view: v_edges_union")
     (zettelkasten-db-query
      "DROP VIEW IF EXISTS v_edges_union")
     (zettelkasten-db--initialize db)
-    (zettelkasten-db-update-predicates)))
+    (zettelkasten-db-update-predicates)
+    (when (y-or-n-p "Zk: Process zettel?")
+      (zettelkasten-db-process))))
 
 ;;;###autoload
 (defun zettelkasten-db-update-predicates ()
