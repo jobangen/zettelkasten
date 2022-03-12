@@ -444,7 +444,7 @@ Used in `zettelkasten--filename-to-id' to process last part of filename."
            (object-title (cadr object)))
       (if headingp
           (zettelkasten--add-to-property "TURTLE"
-                                         (concat predicate "::" object))
+                                         (concat predicate "::" object-id))
         (insert (format "[[zk:%s::%s::%s][%s]]"
                         subject predicate object-id object-title)))))
 
