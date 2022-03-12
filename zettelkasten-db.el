@@ -31,7 +31,7 @@
 ;;
 ;;; Code:
 (require 'emacsql)
-(require 'emacsql-sqlite)
+;; (require 'emacsql-sqlite)
 
 (defcustom zettelkasten-db-file "~/.emacs.d/var/zettelkasten/zkdb.db"
   "Location of the zettelkasten database."
@@ -153,10 +153,7 @@ SELECT subject, predicate, object FROM edges_inferred")
                (emacsql-live-p (zettelkasten-db--get-connection)))
     (make-directory (file-name-directory zettelkasten-db-file) t)
     (let* ((db-exists (file-exists-p zettelkasten-db-file))
-           (conn ((if (eq zettelkasten-db-emacsql-lib 'emacsql-sqlite3)
-                      emacsql-sqlite3
-                    emacsql-sqlite)
-                  zettelkasten-db-file)))
+           (conn (funcall zettelkasten-db-emacsql-lib zettelkasten-db-file)))
       (set-process-query-on-exit-flag (emacsql-process conn) nil)
       (puthash (file-truename zettelkasten-zettel-directory)
                conn
@@ -173,17 +170,18 @@ SELECT subject, predicate, object FROM edges_inferred")
 (defun zettelkasten-db-reset-cache ()
   "Reset cache by dropping tables"
   (interactive)
-  (dolist (schema (reverse zettelkasten-db--schemata))
-    (message "Zk: dropping table: %s" (car schema))
-    (emacsql db [:drop-table-if-exists $i1] (car schema)))
-  (message "Zk: dropping trigger: infer_edges_after_insert_edges")
-  (zettelkasten-db-query
-   "DROP TRIGGER IF EXISTS infer_edges_after_insert_edges")
-  (message "Zk: dropping trigger: v_edges_union")
-  (zettelkasten-db-query
-   "DROP VIEW IF EXISTS v_edges_union")
-  (zettelkasten-db--initialize (emacsql-sqlite zettelkasten-db-file))
-  (zettelkasten-db-update-predicates))
+  (let ((db (funcall zettelkasten-db-emacsql-lib zettelkasten-db-file)))
+    (dolist (schema (reverse zettelkasten-db--schemata))
+      (message "Zk: dropping table: %s" (car schema))
+      (emacsql db [:drop-table-if-exists $i1] (car schema)))
+    (message "Zk: dropping trigger: infer_edges_after_insert_edges")
+    (zettelkasten-db-query
+     "DROP TRIGGER IF EXISTS infer_edges_after_insert_edges")
+    (message "Zk: dropping trigger: v_edges_union")
+    (zettelkasten-db-query
+     "DROP VIEW IF EXISTS v_edges_union")
+    (zettelkasten-db--initialize db)
+    (zettelkasten-db-update-predicates)))
 
 ;;;###autoload
 (defun zettelkasten-db-update-predicates ()
@@ -459,7 +457,7 @@ Use ELEMENT to get properties."
           (condition-case err
               (progn
                 (insert-file-contents filename)
-                (org-mode)              ;; necessary for todo-state parsing
+                (org-mode) ;; necessary for todo-state parsing
                 (zettelkasten-db-update-zettel filename))
             (error (message (format "zk debug: Updating '%s', error: [%s]" filename err))))
           (pop zettelkasten-db-dirty)))
