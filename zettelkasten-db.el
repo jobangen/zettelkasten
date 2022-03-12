@@ -141,8 +141,9 @@ SELECT subject, predicate, object FROM edges_inferred")
       (emacsql db [:create-table-if-not-exists $i1 $S2]
                (car schema) (cadr schema))
       (message "Zk: created table: %s" (car schema)))
-    (emacsql db zettelkasten-db--trigger-edges)
-    (message "Zk: created trigger: infer_edges_after_insert_edges")
+    (unless (eq zettelkasten-db-emacsql-lib 'emacsql-sqlite3)
+      (emacsql db zettelkasten-db--trigger-edges)
+      (message "Zk: created trigger: infer_edges_after_insert_edges"))
     (emacsql db zettelkasten-db--view-edges-union)
     (message "Zk: created view: v_edges_union")))
 
@@ -418,18 +419,20 @@ Use ELEMENT to get properties."
                         fcollection hcollection
                         fsubjects hsubjects
                         turtle orglinks)))
-    ;; (zettelkasten-db-query [:delete-from edges
-    ;;                         :where (in subject $v1)]
-    ;;                        (vconcat ids))
+
+    (when (eq zettelkasten-db-emacsql-lib 'emacsql-sqlite3)
+      (zettelkasten-db-query [:delete-from edges
+                              :where (in subject $v1)]
+                             (vconcat ids)))
     (when edges
       (if (not debug)
           (zettelkasten-db-query [:insert :into edges
-                                  :values $v1]
+                                          :values $v1]
                                  edges)
         (dolist (edge edges)
           (message (format "Inserting edge: %s" edge))
           (zettelkasten-db-query [:insert :into edges
-                                  :values $v1]
+                                          :values $v1]
                                  edge))))))
 
 ;; TODO: improve support for option filename
