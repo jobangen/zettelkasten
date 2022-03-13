@@ -260,12 +260,17 @@ SELECT subject, predicate, object FROM edges_inferred")
                 (split-string objects))))))))))
 
 ;;; Extracting data
-(defun zettelkasten--get-file-todo-state (el)
-  (when (member
-         'todo
-         (org-element-map el 'headline
-           (lambda (headline)
-             (org-element-property :todo-type headline))))
+(defun zettelkasten--get-file-todo-state (filename el)
+  (when (or (member
+             'todo
+             (org-element-map el 'headline
+               (lambda (headline)
+                 (org-element-property :todo-type headline))))
+            (and (s-starts-with? org-journal-dir filename)
+                 (time-less-p (date-to-time (concat
+                                             (base-file-name filename)
+                                             "24:00:00"))
+                              (current-time))))
     t))
 
 (defun zettelkasten--get-file-id (filename element)
@@ -373,7 +378,7 @@ Use ELEMENT to get properties."
 (defun zettelkasten-db--update-files (filename element &optional debug)
   ""
   (let* ((hash (secure-hash 'sha1 (current-buffer)))
-         (todo (zettelkasten--get-file-todo-state element))
+         (todo (zettelkasten--get-file-todo-state filename element))
          (file (vector nil filename hash todo)))
      (zettelkasten-db-query [:delete-from files
                              :where (= filename $s1)]
@@ -448,7 +453,9 @@ Use ELEMENT to get properties."
         (zettelkasten-db--update-files fname element)
         (zettelkasten-db--update-nodes fname element)
         (zettelkasten-db--update-edges fname element))
-      )))
+      ))
+  (when zettelkasten-org-agenda-integration
+    zettelkasten-update-org-agenda-files))
 
 (defun zettelkasten-db--mark-dirty ()
   (add-to-list 'zettelkasten-db-dirty (buffer-file-name)))

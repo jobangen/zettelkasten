@@ -434,7 +434,7 @@ Used in `zettelkasten--filename-to-id' to process last part of filename."
 ;;;###autoload
 (defun zettelkasten-insert-link (&optional subject predicate object)
   (interactive)
-    (let* ((headingp (or (s-starts-with? ":" (thing-at-point 'line t))))
+    (let* ((heading-p (or (s-starts-with? ":" (thing-at-point 'line t))))
            (triple (zettelkasten--build-link-triple
                     (buffer-file-name) (org-element-parse-buffer)))
            (subject (or subject (car triple)))
@@ -442,7 +442,7 @@ Used in `zettelkasten--filename-to-id' to process last part of filename."
            (object (or object (caddr triple)))
            (object-id (car object))
            (object-title (cadr object)))
-      (if headingp
+      (if heading-p
           (zettelkasten--add-to-property "TURTLE"
                                          (concat predicate "::" object-id))
         (insert (format "[[zk:%s::%s::%s][%s]]"
@@ -821,9 +821,7 @@ Uses PATH-IN internally to return path."
     (let ((not-zettelkasten-agenda-files
            (seq-filter
             (lambda (filename)
-              (or (not (string-match "/home/job/Dropbox/db/zk/zettel/.*" filename))
-                  (and (string-match "/home/job/Dropbox/db/zk/zettel/jr/.*" filename)
-                       (= 10 (length (file-name-base filename))))))
+              (not (s-starts-with? zettelkasten-zettel-directory filename)))
             (org-agenda-files)))
           (zettelkasten-agenda-files
            (-flatten (zettelkasten-db-query
