@@ -268,7 +268,7 @@ SELECT subject, predicate, object FROM edges_inferred")
                  (org-element-property :todo-type headline))))
             (and (s-starts-with? org-journal-dir filename)
                  (time-less-p (date-to-time (concat
-                                             (base-file-name filename)
+                                             (file-name-base filename)
                                              "24:00:00"))
                               (current-time))))
     t))
