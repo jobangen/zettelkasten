@@ -455,7 +455,7 @@ Use ELEMENT to get properties."
         (zettelkasten-db--update-edges fname element))
       ))
   (when zettelkasten-org-agenda-integration
-    zettelkasten-update-org-agenda-files))
+    (zettelkasten-update-org-agenda-files)))
 
 (defun zettelkasten-db--mark-dirty ()
   (add-to-list 'zettelkasten-db-dirty (buffer-file-name)))
