@@ -459,7 +459,7 @@ Used in `zettelkasten--filename-to-id' to process last part of filename."
   (zettelkasten-insert-link-loop))
 
 
-(defun zettelkasten-heading-set-relation-to-context (&optional predicate)
+(defun zettelkasten-heading-set-relation-to-context (&optional predicate target)
   "Set relation of heading to parent resource. Use PREDICATE if provided."
   (let* ((filename (buffer-file-name))
          (element (org-element-parse-buffer))
@@ -477,7 +477,7 @@ Used in `zettelkasten--filename-to-id' to process last part of filename."
                          (when h-zkid
                            (list (org-element-property :raw-value headline) 
                                  h-zkid)))))))
-         (target (cadr (assoc (completing-read "Target:" targets) targets)))
+         (target (or target (cadr (assoc (completing-read "Target:" targets) targets))))
          (turtle (format "%s::%s" pred target)))
     (org-set-property "TURTLE" turtle)))
 
