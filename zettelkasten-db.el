@@ -397,6 +397,10 @@ Use ELEMENT to get properties."
   (let* ((file (zettelkasten--get-file-node filename element))
          (headings (zettelkasten--get-headings-nodes filename element))
          (nodes (append file headings)))
+    (when (eq zettelkasten-db-emacsql-lib 'emacsql-sqlite3)
+      (zettelkasten-db-query [:delete-from nodes
+                              :where (= filename $s1)]
+                             filename))
     (if (not debug)
         (zettelkasten-db-query [:insert :into nodes
                                 :values $v1]
@@ -432,12 +436,12 @@ Use ELEMENT to get properties."
     (when edges
       (if (not debug)
           (zettelkasten-db-query [:insert :into edges
-                                          :values $v1]
+                                  :values $v1]
                                  edges)
         (dolist (edge edges)
           (message (format "Inserting edge: %s" edge))
           (zettelkasten-db-query [:insert :into edges
-                                          :values $v1]
+                                  :values $v1]
                                  edge))))))
 
 ;; TODO: improve support for option filename

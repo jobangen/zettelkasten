@@ -479,7 +479,7 @@ Used in `zettelkasten--filename-to-id' to process last part of filename."
                                  h-zkid)))))))
          (target (or target (cadr (assoc (completing-read "Target:" targets) targets))))
          (turtle (format "%s::%s" pred target)))
-    (org-set-property "TURTLE" turtle)))
+    (zettelkasten--add-to-property "TURTLE" turtle)))
 
 ;;;###autoload
 (defun zettelkasten-heading-to-node (&optional rdftype prov-id predicate)
