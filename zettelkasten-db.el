@@ -267,10 +267,10 @@ SELECT subject, predicate, object FROM edges_inferred")
                (lambda (headline)
                  (org-element-property :todo-type headline))))
             (and (s-starts-with? org-journal-dir filename)
-                 (time-less-p (date-to-time (concat
+                 (time-less-p (current-time)
+                              (date-to-time (concat
                                              (file-name-base filename)
-                                             "24:00:00"))
-                              (current-time))))
+                                             "T24:00:00")))))
     t))
 
 (defun zettelkasten--get-file-id (filename element)
