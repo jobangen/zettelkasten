@@ -490,24 +490,23 @@ Used in `zettelkasten--filename-to-id' to process last part of filename."
   (zettelkasten-heading-set-relation-to-context predicate))
 
 (defun zettelkasten-id-get-create (&optional prov-id ret)
-  "Select and set ID for heading. Use PROV-ID if proviede."
-  (let ((zk-id (org-entry-get nil "CUSTOM_ID")))
-    (unless (and zk-id (stringp zk-id) (string-match "\\S-" zk-id))
+  "Select and set ID for heading. Use PROV-ID if provided."
+  (let ((zk-id (or prov-id (org-entry-get nil "CUSTOM_ID"))))
+    (unless (or prov-id (and zk-id (stringp zk-id) (string-match "\\S-" zk-id)))
       (let* ((org-id-method 'ts)
-             (org-id-ts-format "%Y-%m-%d-%H%M%S.%6N")
+             (org-id-ts-format "%Y-%m-%d-%H%M%S.%1N")
              (myid
               (or prov-id
                   (completing-read
                    "ID: "
-                   `(,(zettelkasten--get-keyword "ZK_LABEL")
-                     ,(concat "zk-" (s-chop-suffix ".org" (buffer-name)))
-                     ,(file-name-base)
-                     ,(concat "zk-" (s-left 17 (org-id-new)))))))
+                   (append
+                    (list (org-id-new))
+                    (zettelkasten--get-ids (buffer-file-name) (org-element-parse-buffer)))))
              (editid (read-string "Edit ID: " myid)))
-        (setq zk-id editid))
-      (unless ret
-        (org-set-property "CUSTOM_ID" zk-id)))
-    zk-id))
+        (setq zk-id editid)))
+    (unless ret
+      (org-set-property "CUSTOM_ID" zk-id))
+    zk-id)))
 
 ;; Dirs and Queries
 
