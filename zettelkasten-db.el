@@ -280,7 +280,7 @@ SELECT subject, predicate, object FROM edges_inferred")
 
 (defun zettelkasten--get-ids (filename element)
   (append
-   (zettelkasten--get-file-id filename element)
+   (list (zettelkasten--get-file-id filename element))
    (org-element-map element 'headline
      (lambda (headline)
        (org-element-property :CUSTOM_ID headline)))))
