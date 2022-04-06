@@ -502,11 +502,11 @@ Used in `zettelkasten--filename-to-id' to process last part of filename."
                    (append
                     (list (org-id-new))
                     (zettelkasten--get-ids (buffer-file-name) (org-element-parse-buffer))))))
-             (editid (read-string "Edit ID: " myid))
-             (setq zk-id editid))))
-    (unless ret
-      (org-set-property "CUSTOM_ID" zk-id))
-    zk-id))
+             (editid (read-string "Edit ID: " myid)))
+        (setq zk-id editid)))
+    (if ret
+        zk-id
+      (org-set-property "CUSTOM_ID" zk-id))))
 
 ;; Dirs and Queries
 
