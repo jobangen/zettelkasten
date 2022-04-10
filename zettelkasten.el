@@ -99,6 +99,16 @@
   :group 'zettelkasten
   :type 'string)
 
+(defcustom zettelkasten-edges-mappings
+  `(("RDF_TYPE" "rdf:type")
+    ("COLLECTION" ,zettelkasten-collection-predicate zettelkasten--process-chain)
+    ("DESCRIPTOR" ,zettelkasten-subject-predicate zettelkasten--process-chain)
+    ("GENERATED_AT_TIME" "prov:generatedAtTime")
+    ("INVALIDATED" "prov:invalidatedAtTime"))
+  "Mapping org to linked data dm."
+  :group 'zettelkasten
+  :type 'list)
+
 (defcustom zettelkasten-file-id-format "%Y-%m-%d-%H%M"
   "Format for id part of filename. To be interpreted by `format-time-string'."
   :group 'zettelkasten

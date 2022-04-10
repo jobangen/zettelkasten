@@ -244,8 +244,8 @@ SELECT subject, predicate, object FROM edges_inferred")
          (split-string objects))))))
 
 (defun zettelkasten--triples-for-property (element property predicate &optional objectfn)
-    "Create list of triples for PROPERTY using ELEMENT and PREDICATE. Optionally process value of PROPERTY first with OBJECTFN."
-    (-flatten
+  "Create list of triples for PROPERTY using ELEMENT and PREDICATE. Optionally process value of PROPERTY first with OBJECTFN."
+  (-flatten
    (org-element-map element 'headline
      (lambda (headline)
        (when (org-element-property :CUSTOM_ID headline)
@@ -306,42 +306,19 @@ SELECT subject, predicate, object FROM edges_inferred")
                   (org-element-property :raw-value x) ;; title
                   ))))))
 
-(defun zettelkasten--get-file-rdftypes (filename element)
-  "Get rdf types for FILENAME using ELEMENT, create triples and return them as list of vectors."
-  (zettelkasten--triples-for-keyword filename element "RDF_TYPE" "rdf:type"))
-
-(defun zettelkasten--get-headings-rdftypes (element)
-  "Get rdf types for headings using ELEMENT, create triples and return them as list of vectors."
-  (zettelkasten--triples-for-property element :RDF_TYPE "rdf:type"))
-
-(defun zettelkasten--get-file-collections (filename element)
-  "Extract collections for FILENAME using ELEMENT and return list of vectors."
-  (zettelkasten--triples-for-keyword
-   filename element
-   "COLLECTION" zettelkasten-collection-predicate
-   #'zettelkasten--process-chain))
-
-(defun zettelkasten--get-headings-collections (element)
-  "Extract collection for heading in FILENAME an return list of vectors.
-Use ELEMENT to get properties."
-  (zettelkasten--triples-for-property
-   element
-   :COLLECTION zettelkasten-collection-predicate
-   #'zettelkasten--process-chain))
-
-(defun zettelkasten--get-file-subjects (filename element)
-  "Extract subjects for FILENAME using ELEMENT and return list of vectors."
-  (zettelkasten--triples-for-keyword
-   filename element
-   "DESCRIPTOR" zettelkasten-subject-predicate
-   #'zettelkasten--process-chain))
-
-(defun zettelkasten--get-headings-subjects (element)
-  "Extracts headline-subjects, processes them and return list of vectors"
-  (zettelkasten--triples-for-property
-   element
-   :DESCRIPTOR zettelkasten-subject-predicate
-   #'zettelkasten--process-chain))
+(defun zettelkasten--get-key-prop-edges (filename element)
+  (let ((edges nil))
+    (dolist (mapping zettelkasten-edges-mappings)
+      (let* ((org (car mapping))
+             (org-symbol (intern (concat ":" org)))
+             (predicate (cadr mapping))
+             (fun (caddr mapping)))
+        (setq edges
+              (append
+               edges
+               (zettelkasten--triples-for-keyword filename element org predicate fun)
+               (zettelkasten--triples-for-property element org-symbol predicate fun)))))
+    edges))
 
 (defun zettelkasten--get-headings-turtle (element)
   (-flatten
@@ -416,18 +393,10 @@ Use ELEMENT to get properties."
   (let* ((filename (or fname (buffer-file-name)))
          (element (or el (org-element-parse-buffer)))
          (ids (zettelkasten--get-ids filename element))
-         (ftype (zettelkasten--get-file-rdftypes filename element))
-         (htype (zettelkasten--get-headings-rdftypes element))
-         (fcollection (zettelkasten--get-file-collections filename element))
-         (hcollection (zettelkasten--get-headings-collections element))
-         (fsubjects (zettelkasten--get-file-subjects filename element))
-         (hsubjects (zettelkasten--get-headings-subjects element))
+         (key-prop (zettelkasten--get-key-prop-edges filename element))
          (turtle (zettelkasten--get-headings-turtle element))
          (orglinks (zettelkasten--get-orglinks filename element))
-         (edges (append ftype htype
-                        fcollection hcollection
-                        fsubjects hsubjects
-                        turtle orglinks)))
+         (edges (append key-prop turtle orglinks)))
 
     (when (eq zettelkasten-db-emacsql-lib 'emacsql-sqlite3)
       (zettelkasten-db-query [:delete-from edges
