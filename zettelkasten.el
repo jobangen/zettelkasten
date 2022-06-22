@@ -504,7 +504,7 @@ Used in `zettelkasten--filename-to-id' to process last part of filename."
   (let ((zk-id (or prov-id (org-entry-get nil "CUSTOM_ID"))))
     (unless (or prov-id (and zk-id (stringp zk-id) (string-match "\\S-" zk-id)))
       (let* ((org-id-method 'ts)
-             (org-id-ts-format "%Y-%m-%d-%H%M%S.%1N")
+             (org-id-ts-format "%Y-%m-%dT%H%M%S.%1N")
              (myid
               (or prov-id
                   (completing-read
