@@ -497,7 +497,10 @@ Used in `zettelkasten--filename-to-id' to process last part of filename."
   (interactive)
   (zettelkasten-set-type-headline rdftype)
   (zettelkasten-id-get-create prov-id)
-  (zettelkasten-heading-set-relation-to-context predicate))
+  (zettelkasten-heading-set-relation-to-context predicate)
+  (org-set-property "GENERATED_AT_TIME"
+                    (concat (format-time-string "%Y-%m-%dT%H:%M:%S+")
+                            (job/current-timezone-offset-hours))))
 
 (defun zettelkasten-id-get-create (&optional prov-id ret)
   "Select and set ID for heading. Use PROV-ID if provided."
