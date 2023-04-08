@@ -444,19 +444,19 @@ Used in `zettelkasten--filename-to-id' to process last part of filename."
 ;;;###autoload
 (defun zettelkasten-insert-link (&optional subject predicate object)
   (interactive)
-    (let* ((heading-p (or (s-starts-with? ":" (thing-at-point 'line t))))
-           (triple (zettelkasten--build-link-triple
-                    (buffer-file-name) (org-element-parse-buffer)))
-           (subject (or subject (car triple)))
-           (predicate (or predicate (cadr triple)))
-           (object (or object (caddr triple)))
-           (object-id (car object))
-           (object-title (cadr object)))
-      (if heading-p
-          (zettelkasten--add-to-property "TURTLE"
-                                         (concat predicate "::" object-id))
-        (insert (format "[[zk:%s::%s::%s][%s]]"
-                        subject predicate object-id object-title)))))
+  (let* ((heading-p (or (s-starts-with? ":" (thing-at-point 'line t))))
+         (triple (unless (and subject predicate object) (zettelkasten--build-link-triple
+                                                         (buffer-file-name) (org-element-parse-buffer))))
+         (subject (or subject (car triple)))
+         (predicate (or predicate (cadr triple)))
+         (object (or object (caddr triple)))
+         (object-id (car object))
+         (object-title (cadr object)))
+    (if heading-p
+        (zettelkasten--add-to-property "TURTLE"
+                                       (concat predicate "::" object-id))
+      (insert (format "[[zk:%s::%s::%s][%s]]"
+                      subject predicate object-id object-title)))))
 
 
 ;;;###autoload
