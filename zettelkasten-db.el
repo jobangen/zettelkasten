@@ -154,7 +154,7 @@ SELECT subject, predicate, object FROM edges_inferred")
     (make-directory (file-name-directory zettelkasten-db-file) t)
     (let* ((db-exists (file-exists-p zettelkasten-db-file))
            (conn (funcall zettelkasten-db-emacsql-lib zettelkasten-db-file)))
-      (set-process-query-on-exit-flag (emacsql-process conn) nil)
+      ;; (set-process-query-on-exit-flag (emacsql-process conn) nil)
       (puthash (file-truename zettelkasten-zettel-directory)
                conn
                zettelkasten-db--connection)
