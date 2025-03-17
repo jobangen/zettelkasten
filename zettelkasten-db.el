@@ -443,7 +443,7 @@ SELECT subject, predicate, object FROM edges_inferred")
                 (insert-file-contents filename)
                 (org-mode) ;; necessary for todo-state parsing
                 (zettelkasten-db-update-zettel filename))
-            (error (message (format "zk debug: Updating '%s', error: [%s]" filename err))))
+            (error (message (format "zk debug: Updating '%s', error" filename))))
           (pop zettelkasten-db-dirty)))
       (message "Zettelkasten: Updated %s zettel." len))))
 
