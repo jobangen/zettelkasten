@@ -51,7 +51,7 @@
 
 (defun zettelkasten-zettel-template ()
   "Template for zettel."
-  "#+TITLE:\n#+DATE: %U
+  "#+TITLE: \n#+DATE: %U
 
 * Meta
 
