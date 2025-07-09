@@ -558,6 +558,22 @@ Used in `zettelkasten--filename-to-id' to process last part of filename."
     (delete-trailing-whitespace))
   (org-mode))
 
+(defun zettelkasten--get-all-descriptor-candidates ()
+  (delete-dups
+   (append
+    (-flatten
+     (zettelkasten-db-query
+      [:select :distinct [object]
+       :from edges
+       :where (in predicate $v1)]
+      (zettelkasten-predicate-hierachy
+       zettelkasten-subject-predicate)))
+    (-flatten
+     (zettelkasten-db-query
+      [:select :distinct [tag]
+       :from tags])))))
+
+
 ;;;###autoload
 (defun zettelkasten-zettel-add-descriptor (&optional descriptor)
   "Add DESCRIPTOR to zettel."
@@ -567,15 +583,9 @@ Used in `zettelkasten--filename-to-id' to process last part of filename."
              (completing-read
               "Descriptor: "
               (append
-               '("#Break#")
-               (-flatten
-                (zettelkasten-db-query
-                 [:select :distinct [object]
-                  :from edges
-                  :where (in predicate $v1)]
-                 (zettelkasten-predicate-hierachy
-                  zettelkasten-subject-predicate))))))))
-    (unless (equal desc "#Break#")
+               '("#break#")
+               (zettelkasten--get-all-descriptor-candidates))))))
+    (unless (equal desc "#break#")
       (zettelkasten--add-to-keyword "DESCRIPTOR" desc))
     (unless (or descriptor (equal desc "#Break#"))
       (zettelkasten-zettel-add-descriptor))))
@@ -587,12 +597,7 @@ Used in `zettelkasten--filename-to-id' to process last part of filename."
   (let* ((add
           (completing-read
            "Descriptor [Headline]: "
-           (-flatten
-            (zettelkasten-db-query [:select :distinct [object]
-                                    :from edges
-                                    :where (in predicate $v1)]
-                                   (zettelkasten-predicate-hierachy
-                                    zettelkasten-subject-predicate))))))
+           (zettelkasten--get-all-descriptor-candidates))))
     (zettelkasten--add-to-property "DESCRIPTOR" add))
   (zettelkasten-headline-add-descriptor))
 
@@ -794,18 +799,18 @@ Uses PATH-IN internally to return path."
                       filename
                       (org-element-parse-buffer)
                       "CUSTOM_ID")))
-         (zkid-and-tags (zettelkasten-db-query
-                         [:select :distinct [object]
-                          :from tags
-                          :where (in predicate $v1)]
-                         zkid))
+         (tags (-flatten (zettelkasten-db-query
+                 [:select :distinct [tag]
+                  :from tags
+                  :where (= zkid $s1)]
+                 zkid)))
          (backlinks
           (zettelkasten-db-query [:select [e:predicate n:title n:filename]
                                   :from v_edges_union e
                                   :inner-join nodes n
                                   :on (= e:subject n:zkid)
-                                  :where (= e:object $s1)]
-                                 zkid))
+                                  :where (in e:object $v1)]
+                                 (vconcat (append `(,zkid) tags))))
          (len (car (sort
                     (mapcar (lambda (link)
                               (length (car link)))
