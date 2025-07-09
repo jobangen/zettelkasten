@@ -789,11 +789,16 @@ Uses PATH-IN internally to return path."
     return-value))
 
 (defun zettelkasten--get-backlinks (filename)
-  "Files linking to node at point in FILENAME. Return list links."
+  "Files linking to node at point in FILENAME. Returns list of links."
   (let* ((zkid (caar (zettelkasten-get-property-or-keyword-upwards
                       filename
                       (org-element-parse-buffer)
                       "CUSTOM_ID")))
+         (zkid-and-tags (zettelkasten-db-query
+                         [:select :distinct [object]
+                          :from tags
+                          :where (in predicate $v1)]
+                         zkid))
          (backlinks
           (zettelkasten-db-query [:select [e:predicate n:title n:filename]
                                   :from v_edges_union e

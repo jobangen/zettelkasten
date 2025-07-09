@@ -88,6 +88,13 @@ Options: `immediately' and `when-idle'."
        title]
       (:foreign-key [filename] :references files [filename] :on-delete :cascade)))
 
+    (tags
+     ([(id integer :primary-key)
+       (zkid :not-null)
+       (tag :not-null)
+       ]
+      (:foreign-key [zkid] :references nodes [zkid] :on-delete :cascade)))
+
     (predicates
      ([(id integer :primary-key)
        (name :non-null :unique)
@@ -102,14 +109,14 @@ Options: `immediately' and `when-idle'."
       (:foreign-key [subject] :references nodes [zkid] :on-delete :cascade)))
 
     (edges_inferred
-      ([(id integer :primary-key)
-        (inferred_from)
-        (subject)
-        (predicate)
-        (object)]
-       (:foreign-key [inferred_from] :references edges [id] :on-delete :cascade)
-       (:foreign-key [object] :references nodes [zkid] :on-delete :cascade)
-       ))
+     ([(id integer :primary-key)
+       (inferred_from)
+       (subject)
+       (predicate)
+       (object)]
+      (:foreign-key [inferred_from] :references edges [id] :on-delete :cascade)
+      (:foreign-key [object] :references nodes [zkid] :on-delete :cascade)
+      ))
     ))
 
 (defconst zettelkasten-db--trigger-edges
@@ -294,6 +301,31 @@ SELECT subject, predicate, object FROM edges_inferred")
         (f-title (zettelkasten--get-file-title element)))
     (list (vector nil filename f-zkid 'file f-title))))
 
+(defun zettelkasten--get-tags (filename element)
+  (let* ((file-zkid (zettelkasten--get-file-id filename element))
+         (file-tags (zettelkasten--get-keyword "TAG" element))
+         (zkid-tag-pairs
+          (append
+           (when file-tags
+             (mapcar
+              (lambda (tag)
+                (vector nil file-zkid tag))
+
+              (split-string file-tags)))
+           (apply #'append (org-element-map element 'headline
+                             (lambda (headline)
+                               (let ((headline-zkid (org-element-property :CUSTOM_ID headline)))
+                                 (when headline-zkid
+                                   (let ((headline-tags (org-element-property :TAG headline)))
+                                     (when headline-tags
+                                       (mapcar
+                                        (lambda (tag)
+                                          (vector nil headline-zkid tag))
+                                        (split-string headline-tags))))))))))))
+
+    zkid-tag-pairs))
+
+
 (defun zettelkasten--get-headings-nodes (filename element)
   (org-element-map element 'headline
     (lambda (x)
@@ -388,6 +420,18 @@ SELECT subject, predicate, object FROM edges_inferred")
                                 :values $v1]
                                node)))))
 
+(defun zettelkasten-db--update-tags (filename element &optional debug)
+  (let* ((zkid-tag-rows (zettelkasten--get-tags filename element)))
+    (when debug
+      (message "Updating tags")
+      (message (format "pairs %s" zkid-tag-rows)))
+
+    (when zkid-tag-rows
+      (zettelkasten-db-query [:insert :into tags
+                              :values $v1]
+                             zkid-tag-rows))))
+
+
 (defun zettelkasten-db--update-edges (&optional fname el debug)
   "Update table edges for FNAME using EL."
   (let* ((filename (or fname (buffer-file-name)))
@@ -425,13 +469,15 @@ SELECT subject, predicate, object FROM edges_inferred")
       (let ((element (org-element-parse-buffer)))
         (zettelkasten-db--update-files fname element)
         (zettelkasten-db--update-nodes fname element)
+        (zettelkasten-db--update-tags fname element)
         (zettelkasten-db--update-edges fname element))
       ))
   (when zettelkasten-org-agenda-integration
     (zettelkasten-update-org-agenda-files)))
 
 (defun zettelkasten-db--mark-dirty ()
-  (add-to-list 'zettelkasten-db-dirty (buffer-file-name)))
+  (unless (string-match-p "_archive$" (buffer-file-name))
+    (add-to-list 'zettelkasten-db-dirty (buffer-file-name))))
 
 (defun zettelkasten-db--update-on-timer ()
   (let ((len (length zettelkasten-db-dirty)))
