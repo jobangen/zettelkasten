@@ -32,6 +32,10 @@
 ;;; Code:
 (require 'emacsql)
 
+(when (eq zettelkasten-db-update-method 'immediately-async)
+  (require 'emacs-async))
+
+
 (defcustom zettelkasten-db-file "~/.emacs.d/var/zettelkasten/zkdb.db"
   "Location of the zettelkasten database."
   :group 'zettelkasten
@@ -39,7 +43,7 @@
 
 (defcustom zettelkasten-db-update-method 'when-idle
   "Method to update the zettelkasten database.
-Options: `immediately' and `when-idle'."
+Options: `immediately' `immediately-async' and `when-idle'."
   :group 'zettelkasten)
 
 (defcustom zettelkasten-db-idle-seconds 2
@@ -470,10 +474,26 @@ SELECT subject, predicate, object FROM edges_inferred")
         (zettelkasten-db--update-files fname element)
         (zettelkasten-db--update-nodes fname element)
         (zettelkasten-db--update-tags fname element)
-        (zettelkasten-db--update-edges fname element))
-      ))
+        (zettelkasten-db--update-edges fname element))))
   (when zettelkasten-org-agenda-integration
     (zettelkasten-update-org-agenda-files)))
+
+(defun zettelkasten-db-update-zettel-async (filename hash)
+  (async-start
+   `(lambda ()
+      (add-to-list 'load-path "~/.emacs.d/straight/build/s")
+      (add-to-list 'load-path "~/.emacs.d/straight/build/org")
+      (add-to-list 'load-path "~/.emacs.d/straight/build/org-journal")
+      (add-to-list 'load-path "~/.emacs.d/straight/build/emacsql")
+      (add-to-list 'load-path "~/.emacs.d/straight/build/emacsql-sqlite")
+      (add-to-list 'load-path "~/.emacs.d/straight/build/zettelkasten")
+      (require 'org-journal)
+      (require 'org-capture)
+      (require 'org-element)
+      (require 'emacsql)
+      (require 'emacsql-sqlite-builtin)
+      (require 'zettelkasten)
+      ,(zettelkasten-db-update-zettel filename hash))))
 
 (defun zettelkasten-db--mark-dirty ()
   (unless (string-match-p "_archive$" (buffer-file-name))
@@ -500,6 +520,8 @@ SELECT subject, predicate, object FROM edges_inferred")
      (zettelkasten-db-update-zettel))
     ('when-idle
      (zettelkasten-db--mark-dirty))
+    ('immediately-async
+     (zettelkasten-db-update-zettel-async (buffer-file-name) (secure-hash 'sha1 (current-buffer))))
     (_
      (user-error "Invalid `zettelkasten-db-update-method'"))))
 
