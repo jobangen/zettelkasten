@@ -33,7 +33,7 @@
 (require 'emacsql)
 
 (when (eq zettelkasten-db-update-method 'immediately-async)
-  (require 'emacs-async))
+  (require 'async))
 
 
 (defcustom zettelkasten-db-file "~/.emacs.d/var/zettelkasten/zkdb.db"
