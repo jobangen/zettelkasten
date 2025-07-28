@@ -541,7 +541,9 @@ SELECT subject, predicate, object FROM edges_inferred")
 (defun zettelkasten-db-process ()
   (interactive)
   (let ((files (zettelkasten--get-all-files)))
-    (setq zettelkasten-db-dirty (append zettelkasten-db-dirty files))))
+    (setq zettelkasten-db-dirty (append zettelkasten-db-dirty files)))
+  (unless (eq zettelkasten-db-update-method 'when-idle)
+    (zettelkasten-db--update-on-timer)))
 
 ;;; Helper
 (defun zettelkasten-db--title-filename (&optional filenames)
