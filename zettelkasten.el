@@ -215,7 +215,7 @@ Used in `zettelkasten--filename-to-id' to process last part of filename."
     (if type
         (zettelkasten-set-type type)
       (zettelkasten-set-type))
-    (zettelkasten-set-label)
+    (zettelkasten-set-tag)
     (save-buffer)))
 
 ;;; Open from Zettel
@@ -316,30 +316,30 @@ Used in `zettelkasten--filename-to-id' to process last part of filename."
 
 
 ;;;###autoload
-(defun zettelkasten-set-label (&optional label)
-  "Set LABEL for zettel."
+(defun zettelkasten-set-tag (&optional tag)
+  "Set TAG for zettel."
   (interactive)
   (let* ((title (zettelkasten--get-file-title))
          (title-proc (s-replace-all '((" " . "-")
                                       ("," . "")
                                       ("." . ""))
                                     title))
-         (label-old
-          (zettelkasten--get-keyword "CUSTOM_ID"))
-         (label-sel (or label
-                        (read-string "Custom ID: " (or label-old
-                                                       title-proc)))))
-    (when (and label-sel (stringp label-sel) (string-match "\\S-" label-sel))
-      (zettelkasten--set-keyword "CUSTOM_ID" label-sel))))
+         (tag-old
+          (zettelkasten--get-keyword "TAG"))
+         (tag-sel (or tag
+                        (read-string "Tag: " (or tag-old
+                                                 title-proc)))))
+    (when (and tag-sel (stringp tag-sel) (string-match "\\S-" tag-sel))
+      (zettelkasten--set-keyword "TAG" tag-sel))))
 
 ;;;###autoload
-(defun zettelkasten-set-type-and-label ()
+(defun zettelkasten-set-type-and-tag ()
   "Set type and label for zettel."
   (interactive)
   (zettelkasten-set-type)
   (unless (or (s-contains? "/txt/" (buffer-file-name))
               (s-contains? "/jr/" (buffer-file-name)))
-    (zettelkasten-set-label)))
+    (zettelkasten-set-tag)))
 
 (defun zettelkasten--get-predicates-by-domain (subject-types)
   "Get all predicates which domains match type in SUBJECT-TYPES."
