@@ -805,7 +805,7 @@ Uses PATH-IN internally to return path."
                   :where (= zkid $s1)]
                  zkid)))
          (backlinks
-          (zettelkasten-db-query [:select [e:predicate n:title n:filename]
+          (zettelkasten-db-query [:select [e:predicate n:title n:filename n:zkid]
                                   :from v_edges_union e
                                   :inner-join nodes n
                                   :on (= e:subject n:zkid)
@@ -824,7 +824,7 @@ Uses PATH-IN internally to return path."
                             (s-pad-right 40 " "
                                          (s-left 40 (file-name-base (caddr link))))
                             " ")
-                    (caddr link)))
+                    (nth 3 link)))
             backlinks)))
 
 ;;;###autoload
@@ -833,7 +833,7 @@ Uses PATH-IN internally to return path."
   (interactive)
   (let* ((zettel (zettelkasten--get-backlinks (buffer-file-name)))
          (selected (assoc (completing-read "Zettel: " zettel) zettel)))
-    (find-file (cadr selected))))
+    (org-zettelkasten-open (cadr selected))))
 
 ;;;###autoload
 (defun zettelkasten-update-org-agenda-files ()
