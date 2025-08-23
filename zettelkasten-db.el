@@ -469,7 +469,7 @@ SELECT subject, predicate, object FROM edges_inferred")
                                                 :where (= filename $s1)]
                                                fname))))
     (unless (string= curr-hash db-hash)
-      (message "Zettelkasten: Updating... %s" filename)
+      (message "Zettelkasten: Updating... %s" (car (last (split-string fname "/"))))
       (let ((element (org-element-parse-buffer)))
         (zettelkasten-db--update-files fname element)
         (zettelkasten-db--update-nodes fname element)
