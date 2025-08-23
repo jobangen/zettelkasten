@@ -915,6 +915,12 @@ Uses PATH-IN internally to return path."
          (str (mapconcat 'identity new " ")))
     (org-set-property property str)))
 
+;; utils
+(defun zettelkasten--get-zkid-at-point ()
+  (caar (zettelkasten-get-property-or-keyword-upwards
+         (buffer-file-name)
+         (org-element-parse-buffer)
+         "CUSTOM_ID")))
 
 (provide 'zettelkasten)
 ;;; zettelkasten.el ends here
