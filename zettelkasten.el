@@ -100,11 +100,7 @@
   :type 'string)
 
 (defcustom zettelkasten-edges-mappings
-  `(("RDF_TYPE" "rdf:type")
-    ("COLLECTION" ,zettelkasten-collection-predicate zettelkasten--process-chain)
-    ("DESCRIPTOR" ,zettelkasten-subject-predicate zettelkasten--process-chain)
-    ("GENERATED_AT_TIME" "prov:generatedAtTime")
-    ("INVALIDATED" "prov:invalidatedAtTime"))
+  `(("RDF_TYPE" "rdf:type"))
   "Mapping org to linked data dm."
   :group 'zettelkasten
   :type 'list)
