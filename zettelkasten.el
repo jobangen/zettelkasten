@@ -502,24 +502,32 @@ Used in `zettelkasten--filename-to-id' to process last part of filename."
                     (concat (format-time-string "%Y-%m-%dT%H:%M:%S+")
                             (job/current-timezone-offset-hours))))
 
-(defun zettelkasten-id-get-create (&optional prov-id ret)
-  "Select and set ID for heading. Use PROV-ID if provided."
-  (let ((zk-id (or prov-id (org-entry-get nil "CUSTOM_ID"))))
-    (unless (or prov-id (and zk-id (stringp zk-id) (string-match "\\S-" zk-id)))
+(defun zettelkasten-id-get-create (&optional prov-id return silent)
+  "Select and set ID for heading. Use PROV-ID if provided.
+
+   PROV-ID: provided ID to be considered when genereting ID
+   RETURN: Don't set ID as prop but return it
+   SILENT: Don't ask for ID pick and edits"
+  (let ((zkid (or prov-id (org-entry-get nil "CUSTOM_ID"))))
+    (unless (and zkid (stringp zkid) (string-match "\\S-" zkid))
       (let* ((org-id-method 'ts)
              (org-id-ts-format "%Y-%m-%dT%H%M%S.%1N")
-             (myid
-              (or prov-id
-                  (completing-read
-                   "ID: "
-                   (append
-                    (list (org-id-new))
-                    (zettelkasten--get-ids (buffer-file-name) (org-element-parse-buffer))))))
-             (editid (read-string "Edit ID: " myid)))
-        (setq zk-id editid)))
-    (if ret
-        zk-id
-      (org-set-property "CUSTOM_ID" zk-id))))
+             (zkid-new (org-id-new))
+             (zkid-selected
+              (if silent
+                  zkid-new
+                (or prov-id
+                    (completing-read
+                     "ID: "
+                     (append
+                      (list zkid-new)
+                      (zettelkasten--get-ids (buffer-file-name) (org-element-parse-buffer))))))))
+        (setq zkid (if silent
+                       zkid-selected
+                     (read-string "Edit ID: " zkid-selected)))))
+    (if return
+        zkid
+      (org-set-property "CUSTOM_ID" zkid))))
 
 ;; Dirs and Queries
 
