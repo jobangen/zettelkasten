@@ -225,13 +225,15 @@ SELECT subject, predicate, object FROM edges_inferred")
                         (split-string
                          subject zettelkasten-descriptor-chain-sep))
                        (sub (car split)))
+                  ;; add complete descriptor chain
                   (push sub subject-list)
                   (pop split)
                   (dolist (subject split)
                     (setq sub
                           (concat
                            sub zettelkasten-descriptor-chain-sep subject))
-                    (push sub subject-list))))
+                    (unless (s-ends-with? ">" sub)
+                      (push sub subject-list)))))
                (t (push subject subject-list)))
          subject-list))
      subjects))))
