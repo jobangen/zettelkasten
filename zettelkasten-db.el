@@ -494,7 +494,7 @@ SELECT subject, predicate, object FROM edges_inferred")
       (require 'emacsql)
       (require 'emacsql-sqlite-builtin)
       (require 'zettelkasten)
-      (zettelkasten-db-update-zettel ,filename ,hash))))
+      (zettelkasten-db-update-zettel ',filename ',hash))))
 
 (defun zettelkasten-db--mark-dirty ()
   (unless (string-match-p "_archive$" (buffer-file-name))
