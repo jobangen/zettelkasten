@@ -32,10 +32,6 @@
 ;;; Code:
 (require 'emacsql)
 
-(when (eq zettelkasten-db-update-method 'immediately-async)
-  (require 'async))
-
-
 (defcustom zettelkasten-db-file "~/.emacs.d/var/zettelkasten/zkdb.db"
   "Location of the zettelkasten database."
   :group 'zettelkasten
@@ -60,6 +56,9 @@ Options: `immediately' `immediately-async' and `when-idle'."
   "Emacsql library to use. Options: emacsql-sqlite, emacsql-sqlite3 "
   :type 'symbol
   :group 'zettelkasten)
+
+(when (eq zettelkasten-db-update-method 'immediately-async)
+  (require 'async))
 
 (require zettelkasten-db-emacsql-lib)
 
