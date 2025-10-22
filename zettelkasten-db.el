@@ -516,7 +516,7 @@ SELECT subject, predicate, object FROM edges_inferred")
           (pop zettelkasten-db-dirty)))
       (message "Zettelkasten: Updated %s zettel." len))))
 
-(defun zettelkasten-db-update ()
+(defun zettelkasten-db-update (filename hash)
   "Update database"
   (pcase zettelkasten-db-update-method
     ('immediately
@@ -533,9 +533,13 @@ SELECT subject, predicate, object FROM edges_inferred")
    zettelkasten-zettel-directory
    (or filename (buffer-file-name))))
 
-(add-hook 'after-save-hook (lambda ()
-                             (when (zettelkasten-zettel-p)
-                               (zettelkasten-db-update))))
+(add-hook 'after-save-hook
+          (lambda ()
+            (let ((filename (buffer-file-name)))
+              (when (zettelkasten-zettel-p filename)
+                (zettelkasten-db-update
+                 filename
+                 (secure-hash 'sha1 (current-buffer)))))))
 
 (when (eq zettelkasten-db-update-method 'when-idle)
   (run-with-idle-timer
