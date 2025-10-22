@@ -478,7 +478,8 @@ SELECT subject, predicate, object FROM edges_inferred")
         (zettelkasten-db--update-tags fname element)
         (zettelkasten-db--update-edges fname element))))
   (when zettelkasten-org-agenda-integration
-    (zettelkasten-update-org-agenda-files)))
+    (zettelkasten-update-org-agenda-files))
+  t)
 
 (defun zettelkasten-db-update-zettel-async (filename hash)
   (async-start
@@ -498,7 +499,7 @@ SELECT subject, predicate, object FROM edges_inferred")
       (require 'emacsql)
       (require 'emacsql-sqlite-builtin)
       (require 'zettelkasten)
-      (zettelkasten-db-update-zettel ,filename ,hash)
+      ,(zettelkasten-db-update-zettel filename hash)
       (file-name-base ,filename))
    (lambda (result)
      (message "[zk] async update finished: '%s'" result))))
