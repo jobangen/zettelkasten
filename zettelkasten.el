@@ -26,6 +26,7 @@
 ;;
 ;;; Code:
 (require 's)
+(require 'dash)
 (require 'zettelkasten-db)
 
 (defgroup zettelkasten nil
@@ -110,12 +111,24 @@
   :group 'zettelkasten
   :type 'string)
 
+;;; customizing this is problematic for async updates because init.el (etc.) is not available
 (defcustom zettelkasten-filename-to-id-func #'zettelkasten-default-filename-to-id
   "Function for extracting id from filename."
   :group 'zettelkasten
   :type 'function)
 
-(defun zettelkasten-default-filename-to-id (filenamepart)
+(defun zettelkasten-default-filename-to-id (filename)
+  (cond ((s-prefix? "txt" filename)
+         (s-chop-prefix "txt/" filename))
+        ((s-prefix? "jr" filename)
+         (s-chop-prefix "jr/" filename))
+        ((s-prefix? "eph" filename)
+         (s-left 15 (s-chop-prefix "eph/" filename)))
+        (t (s-left
+            (length (format-time-string zettelkasten-file-id-format))
+            filename))))
+
+(defun zettelkasten-simple-filename-to-id (filenamepart)
   "Default func to extract id from FILENAMEPART.
 Used in `zettelkasten--filename-to-id' to process last part of filename."
   (let ((id-length (length (format-time-string zettelkasten-file-id-format))))

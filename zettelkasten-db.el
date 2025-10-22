@@ -31,6 +31,7 @@
 ;;
 ;;; Code:
 (require 'emacsql)
+(require 'dash)
 
 (defcustom zettelkasten-db-file "~/.emacs.d/var/zettelkasten/zkdb.db"
   "Location of the zettelkasten database."
@@ -480,23 +481,27 @@ SELECT subject, predicate, object FROM edges_inferred")
     (zettelkasten-update-org-agenda-files)))
 
 (defun zettelkasten-db-update-zettel-async (filename hash)
-  (let ((fname filename)
-        (fhash hash))
-    (async-start
-     `(lambda ()
-        (add-to-list 'load-path "~/.emacs.d/straight/build/s")
-        (add-to-list 'load-path "~/.emacs.d/straight/build/org")
-        (add-to-list 'load-path "~/.emacs.d/straight/build/org-journal")
-        (add-to-list 'load-path "~/.emacs.d/straight/build/emacsql")
-        (add-to-list 'load-path "~/.emacs.d/straight/build/emacsql-sqlite")
-        (add-to-list 'load-path "~/.emacs.d/straight/build/zettelkasten")
-        (require 'org-journal)
-        (require 'org-capture)
-        (require 'org-element)
-        (require 'emacsql)
-        (require 'emacsql-sqlite-builtin)
-        (require 'zettelkasten)
-        (zettelkasten-db-update-zettel ,fname ,fhash)))))
+  (async-start
+   `(lambda ()
+      (add-to-list 'load-path "~/.emacs.d/straight/build/s")
+      (add-to-list 'load-path "~/.emacs.d/straight/build/dash")
+      (add-to-list 'load-path "~/.emacs.d/straight/build/org")
+      (add-to-list 'load-path "~/.emacs.d/straight/build/org-journal")
+      (add-to-list 'load-path "~/.emacs.d/straight/build/emacsql")
+      (add-to-list 'load-path "~/.emacs.d/straight/build/emacsql-sqlite")
+      (add-to-list 'load-path "~/.emacs.d/straight/build/zettelkasten")
+      (require 's)
+      (require 'dash)
+      (require 'org-capture)
+      (require 'org-element)
+      (require 'org-journal)
+      (require 'emacsql)
+      (require 'emacsql-sqlite-builtin)
+      (require 'zettelkasten)
+      (zettelkasten-db-update-zettel ,filename ,hash)
+      (file-name-base ,filename))
+   (lambda (result)
+     (message "[zk] async update finished: '%s'" result))))
 
 (defun zettelkasten-db--mark-dirty ()
   (unless (string-match-p "_archive$" (buffer-file-name))
@@ -524,7 +529,7 @@ SELECT subject, predicate, object FROM edges_inferred")
     ('when-idle
      (zettelkasten-db--mark-dirty))
     ('immediately-async
-     (zettelkasten-db-update-zettel-async (buffer-file-name) (secure-hash 'sha1 (current-buffer))))
+     (zettelkasten-db-update-zettel-async filename hash))
     (_
      (user-error "Invalid `zettelkasten-db-update-method'"))))
 
