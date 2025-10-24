@@ -412,10 +412,9 @@ SELECT subject, predicate, object FROM edges_inferred")
   (let* ((file (zettelkasten--get-file-node filename element))
          (headings (zettelkasten--get-headings-nodes filename element))
          (nodes (append file headings)))
-    (when (eq zettelkasten-db-emacsql-lib 'emacsql-sqlite3)
-      (zettelkasten-db-query [:delete-from nodes
-                              :where (= filename $s1)]
-                             filename))
+    (zettelkasten-db-query [:delete-from nodes
+                            :where (= filename $s1)]
+                           filename)
     (if (not debug)
         (zettelkasten-db-query [:insert :into nodes
                                 :values $v1]
@@ -424,7 +423,8 @@ SELECT subject, predicate, object FROM edges_inferred")
         (message (format "Inserting node: %s" node))
         (zettelkasten-db-query [:insert :into nodes
                                 :values $v1]
-                               node)))))
+                               node)))
+    nodes))
 
 (defun zettelkasten-db--update-tags (filename element &optional debug)
   (let* ((zkid-tag-rows (zettelkasten--get-tags filename element)))
@@ -481,7 +481,32 @@ SELECT subject, predicate, object FROM edges_inferred")
     (zettelkasten-update-org-agenda-files))
   t)
 
-(defun zettelkasten-db-update-zettel-async (filename hash)
+(defun zettelkasten-db-update-zettel2 (&optional filename hash org-content-string)
+  (let* ((fname (file-truename (or filename (buffer-file-name))))
+         (curr-hash (or hash (secure-hash 'sha1 (current-buffer))))
+         (db-hash (caar (zettelkasten-db-query [:select hash :from files
+                                                :where (= filename $s1)]
+                                               fname))))
+
+    ;; (message "Zettelkasten: Updating... %s" (car (last (split-string fname "/"))))
+    (let* ((element (if org-content-string
+                        (with-temp-buffer
+                          (insert org-content-string)
+                          (org-mode)
+                          (org-element-parse-buffer))
+                      (org-element-parse-buffer)))
+           (nodes (zettelkasten-db--update-nodes fname element)))
+      (zettelkasten-db--update-files fname element)
+      ;; (zettelkasten-db--update-nodes fname element)
+      (zettelkasten-db--update-tags fname element)
+      (zettelkasten-db--update-edges fname element)
+      nodes))
+  ;; (when zettelkasten-org-agenda-integration
+  ;;   (zettelkasten-update-org-agenda-files))
+  ;; filename
+  )
+
+(defun zettelkasten-db-update-zettel-async (filename hash org-content-string)
   (async-start
    `(lambda ()
       (add-to-list 'load-path "~/.emacs.d/straight/build/s")
@@ -499,8 +524,11 @@ SELECT subject, predicate, object FROM edges_inferred")
       (require 'emacsql)
       (require 'emacsql-sqlite-builtin)
       (require 'zettelkasten)
-      ,(zettelkasten-db-update-zettel filename hash)
-      (file-name-base ,filename))
+
+      (let ((zettelkasten-zettel-directory
+             ,zettelkasten-zettel-directory))
+        ,(zettelkasten-db-update-zettel filename hash))
+      )
    (lambda (result)
      (message "[zk] async update finished: '%s'" result))))
 
@@ -530,7 +558,10 @@ SELECT subject, predicate, object FROM edges_inferred")
     ('when-idle
      (zettelkasten-db--mark-dirty))
     ('immediately-async
-     (zettelkasten-db-update-zettel-async filename hash))
+     (zettelkasten-db-update-zettel-async
+      filename
+      hash
+      (buffer-substring-no-properties (point-min) (point-max))))
     (_
      (user-error "Invalid `zettelkasten-db-update-method'"))))
 

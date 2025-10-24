@@ -111,12 +111,6 @@
   :group 'zettelkasten
   :type 'string)
 
-;;; customizing this is problematic for async updates because init.el (etc.) is not available
-(defcustom zettelkasten-filename-to-id-func #'zettelkasten-default-filename-to-id
-  "Function for extracting id from filename."
-  :group 'zettelkasten
-  :type 'function)
-
 (defun zettelkasten-default-filename-to-id (filename)
   (cond ((s-prefix? "txt" filename)
          (s-chop-prefix "txt/" filename))
@@ -127,6 +121,13 @@
         (t (s-left
             (length (format-time-string zettelkasten-file-id-format))
             filename))))
+
+;;; customizing this is problematic for async updates because init.el (etc.) is not available
+(defcustom zettelkasten-filename-to-id-func #'zettelkasten-default-filename-to-id
+  "Function for extracting id from filename."
+  :group 'zettelkasten
+  :type 'function)
+
 
 (defun zettelkasten-simple-filename-to-id (filenamepart)
   "Default func to extract id from FILENAMEPART.
@@ -140,7 +141,17 @@ Used in `zettelkasten--filename-to-id' to process last part of filename."
           (s-chop-prefix
            zettelkasten-zettel-directory
            (s-chop-suffix ".org" filename))))
-    (funcall zettelkasten-filename-to-id-func fname-chop)))
+    (cond ((s-prefix? "txt" fname-chop)
+           (s-chop-prefix "txt/" fname-chop))
+          ((s-prefix? "jr" fname-chop)
+           (s-chop-prefix "jr/" fname-chop))
+          ((s-prefix? "eph" fname-chop)
+           (s-left 15 (s-chop-prefix "eph/" fname-chop)))
+          (t (s-left
+              (length (format-time-string zettelkasten-file-id-format))
+              fname-chop)))
+    ;; (funcall zettelkasten-filename-to-id-func fname-chop)
+    ))
 
 (defun zettelkasten-journal-capture ()
   (let* ((target (org-read-date))
