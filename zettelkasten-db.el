@@ -390,81 +390,105 @@ SELECT subject, predicate, object FROM edges_inferred")
            ))))))
 
 ;;; Update database
-(defun zettelkasten-db--update-files (filename element &optional debug)
-  ""
-  (let* ((hash (secure-hash 'sha1 (current-buffer)))
-         (todo (zettelkasten--get-file-todo-state filename element))
-         (file (vector nil filename hash todo)))
-     (zettelkasten-db-query [:delete-from files
-                             :where (= filename $s1)]
-                            filename)
-    (if (not debug)
-        (zettelkasten-db-query [:insert :into files
-                                :values $v1]
-                               file)
-      (message (format "Inserting file: %s" file))
-      (zettelkasten-db-query [:insert :into files
-                              :values $v1]
-                             file))))
+(defun zettelkasten-db--construct-file-vector (filename hash element)
+  (vector
+   nil
+   filename
+   hash
+   (zettelkasten--get-file-todo-state filename element)))
 
-(defun zettelkasten-db--update-nodes (filename element &optional debug)
-  "Format [id FILENAME zkid type title] using ELEMENT."
-  (let* ((file (zettelkasten--get-file-node filename element))
-         (headings (zettelkasten--get-headings-nodes filename element))
-         (nodes (append file headings)))
+(defun zettelkasten-db--construct-nodes-vectors (filename element)
+  "Construct list of vectors for table 'nodes'."
+  (let ((file-node (zettelkasten--get-file-node filename element))
+        (heading-nodes (zettelkasten--get-headings-nodes filename element)))
+    (append file-node heading-nodes)))
+
+(defun zettelkasten-db--construct-tags-vectors (filename element)
+  "Construct zkid-tag pairs file file and headings"
+  (let* ((file-zkid (zettelkasten--get-file-id filename element))
+         (file-tags (zettelkasten--get-keyword "TAG" element))
+         (file-pairs (when file-tags
+                       (mapcar
+                        (lambda (tag)
+                          (vector nil file-zkid tag))
+                        (split-string file-tags))))
+         (heading-pairs (apply
+                         #'append
+                         (org-element-map element 'headline
+                           (lambda (headline)
+                             (let ((headline-zkid (org-element-property :CUSTOM_ID headline)))
+                               (when headline-zkid
+                                 (let ((headline-tags (org-element-property :TAG headline)))
+                                   (when headline-tags
+                                     (mapcar
+                                      (lambda (tag)
+                                        (vector nil headline-zkid tag))
+                                      (split-string headline-tags)))))))))))
+    (append file-pairs heading-pairs)))
+
+(defun zettelkasten-db--construct-edge-vectors (filename element)
+  (let* ((key-prop (zettelkasten--get-key-prop-edges filename element))
+         (turtle (zettelkasten--get-headings-turtle element))
+         (orglinks (zettelkasten--get-orglinks filename element)))
+    (append key-prop turtle orglinks)))
+
+(defun zettelkasten-db--delete-filedata (filename zkids)
+  (let ((vzkids (vconcat zkids)))
+    (zettelkasten-db-query [:delete-from files
+                            :where (= filename $s1)]
+                           filename)
     (zettelkasten-db-query [:delete-from nodes
                             :where (= filename $s1)]
                            filename)
-    (if (not debug)
-        (zettelkasten-db-query [:insert :into nodes
-                                :values $v1]
-                               nodes)
-      (dolist (node nodes)
-        (message (format "Inserting node: %s" node))
-        (zettelkasten-db-query [:insert :into nodes
-                                :values $v1]
-                               node)))
-    nodes))
+    (zettelkasten-db-query [:delete-from edges
+                            :where (in subject $v1)]
+                           vzkids)
+    (zettelkasten-db-query [:delete-from tags
+                            :where (in zkid $v1)]
+                           vzkids))
+  (message "result filename %s" filename))
 
-(defun zettelkasten-db--update-tags (filename element &optional debug)
-  (let* ((zkid-tag-rows (zettelkasten--get-tags filename element)))
-    (when debug
-      (message "Updating tags")
-      (message (format "pairs %s" zkid-tag-rows)))
-
-    (when zkid-tag-rows
+(defun zettelkasten-db--insert-filedata (data)
+  "Insert data to tables files, nodes, edges, tags."
+  (let ((vfile (plist-get data ':file))
+        (vnodes (plist-get data ':nodes))
+        (vedges (plist-get data ':edges))
+        (vtags (plist-get data ':tags)))
+    (zettelkasten-db-query [:insert :into files
+                            :values $v1]
+                           vfile)
+    (zettelkasten-db-query [:insert :into nodes
+                            :values $v1]
+                           vnodes)
+    (zettelkasten-db-query [:insert :into edges
+                            :values $v1]
+                           vedges)
+    (when vtags
       (zettelkasten-db-query [:insert :into tags
                               :values $v1]
-                             zkid-tag-rows))))
+                             vtags))))
 
-
-(defun zettelkasten-db--update-edges (&optional fname el debug)
-  "Update table edges for FNAME using EL."
-  (let* ((filename (or fname (buffer-file-name)))
-         (element (or el (org-element-parse-buffer)))
-         (ids (zettelkasten--get-ids filename element))
-         (key-prop (zettelkasten--get-key-prop-edges filename element))
-         (turtle (zettelkasten--get-headings-turtle element))
-         (orglinks (zettelkasten--get-orglinks filename element))
-         (edges (append key-prop turtle orglinks)))
-
-    (when (eq zettelkasten-db-emacsql-lib 'emacsql-sqlite3)
-      (zettelkasten-db-query [:delete-from edges
-                              :where (in subject $v1)]
-                             (vconcat ids)))
-    (when edges
-      (if (not debug)
-          (zettelkasten-db-query [:insert :into edges
-                                  :values $v1]
-                                 edges)
-        (dolist (edge edges)
-          (message (format "Inserting edge: %s" edge))
-          (zettelkasten-db-query [:insert :into edges
-                                  :values $v1]
-                                 edge))))))
+(defun zettelkasten-db--construct-filedata
+    (filename hash element &optional org-content-string)
+  (let* ((el (or element
+                 (with-temp-buffer
+                   (insert org-content-string)
+                   (org-mode)
+                   (org-element-parse-buffer)))))
+    `(
+      :filename ,filename
+      :zkids ,(zettelkasten--get-ids filename el)
+      :file ,(zettelkasten-db--construct-file-vector
+              filename hash el)
+      :nodes ,(zettelkasten-db--construct-nodes-vectors
+               filename el)
+      :edges ,(zettelkasten-db--construct-edge-vectors
+               filename el)
+      :tags ,(zettelkasten-db--construct-tags-vectors
+              filename el))))
 
 ;; TODO: improve support for option filename
-(defun zettelkasten-db-update-zettel (&optional filename hash)
+(defun zettelkasten-db-update-zettel (&optional filename hash element)
   (let* ((fname (file-truename (or filename (buffer-file-name))))
          (curr-hash (or hash (secure-hash 'sha1 (current-buffer))))
          (db-hash (caar (zettelkasten-db-query [:select hash :from files
@@ -472,39 +496,14 @@ SELECT subject, predicate, object FROM edges_inferred")
                                                fname))))
     (unless (string= curr-hash db-hash)
       (message "Zettelkasten: Updating... %s" (car (last (split-string fname "/"))))
-      (let ((element (org-element-parse-buffer)))
-        (zettelkasten-db--update-files fname element)
-        (zettelkasten-db--update-nodes fname element)
-        (zettelkasten-db--update-tags fname element)
-        (zettelkasten-db--update-edges fname element))))
+
+      (let* ((el (or element (org-element-parse-buffer)))
+             (data (zettelkasten-db--construct-filedata fname curr-hash element)))
+        (zettelkasten-db--delete-filedata filename (plist-get data ':zkids))
+        (zettelkasten-db--insert-filedata data))))
   (when zettelkasten-org-agenda-integration
     (zettelkasten-update-org-agenda-files))
   t)
-
-(defun zettelkasten-db-update-zettel2 (&optional filename hash org-content-string)
-  (let* ((fname (file-truename (or filename (buffer-file-name))))
-         (curr-hash (or hash (secure-hash 'sha1 (current-buffer))))
-         (db-hash (caar (zettelkasten-db-query [:select hash :from files
-                                                :where (= filename $s1)]
-                                               fname))))
-
-    ;; (message "Zettelkasten: Updating... %s" (car (last (split-string fname "/"))))
-    (let* ((element (if org-content-string
-                        (with-temp-buffer
-                          (insert org-content-string)
-                          (org-mode)
-                          (org-element-parse-buffer))
-                      (org-element-parse-buffer)))
-           (nodes (zettelkasten-db--update-nodes fname element)))
-      (zettelkasten-db--update-files fname element)
-      ;; (zettelkasten-db--update-nodes fname element)
-      (zettelkasten-db--update-tags fname element)
-      (zettelkasten-db--update-edges fname element)
-      nodes))
-  ;; (when zettelkasten-org-agenda-integration
-  ;;   (zettelkasten-update-org-agenda-files))
-  ;; filename
-  )
 
 (defun zettelkasten-db-update-zettel-async (filename hash org-content-string)
   (async-start
@@ -524,13 +523,18 @@ SELECT subject, predicate, object FROM edges_inferred")
       (require 'emacsql)
       (require 'emacsql-sqlite-builtin)
       (require 'zettelkasten)
-
-      (let ((zettelkasten-zettel-directory
-             ,zettelkasten-zettel-directory))
-        ,(zettelkasten-db-update-zettel filename hash))
-      )
+      (let* ((zettelkasten-zettel-directory ,zettelkasten-zettel-directory)
+             (db-hash (caar (zettelkasten-db-query [:select hash :from files
+                                                    :where (= filename $s1)]
+                                                   ,filename))))
+        (unless (string= ,hash db-hash)
+          (zettelkasten-db--construct-filedata ,filename ,hash ,nil ,org-content-string))))
    (lambda (result)
-     (message "[zk] async update finished: '%s'" result))))
+     (zettelkasten-db--delete-filedata filename (plist-get result ':zkids))
+     (zettelkasten-db--insert-filedata result)
+     (when zettelkasten-org-agenda-integration
+       (zettelkasten-update-org-agenda-files))
+     (message "[zk] async update done: '%s'" (file-name-base (plist-get result ':filename))))))
 
 (defun zettelkasten-db--mark-dirty ()
   (unless (string-match-p "_archive$" (buffer-file-name))
@@ -545,7 +549,7 @@ SELECT subject, predicate, object FROM edges_inferred")
               (progn
                 (insert-file-contents filename)
                 (org-mode) ;; necessary for todo-state parsing
-                (zettelkasten-db-update-zettel filename))
+                (zettelkasten-db-update-zettel filename (secure-hash 'sha1 (current-buffer)) (org-element-parse-buffer)))
             (error (message (format "zk debug: Updating '%s', error: %s" filename (error-message-string err)))))
           (pop zettelkasten-db-dirty)))
       (message "Zettelkasten: Updated %s zettel." len))))
@@ -554,7 +558,7 @@ SELECT subject, predicate, object FROM edges_inferred")
   "Update database"
   (pcase zettelkasten-db-update-method
     ('immediately
-     (zettelkasten-db-update-zettel))
+     (zettelkasten-db-update-zettel filename hash (org-element-parse-buffer)))
     ('when-idle
      (zettelkasten-db--mark-dirty))
     ('immediately-async
@@ -591,7 +595,7 @@ SELECT subject, predicate, object FROM edges_inferred")
 
 ;;; Helper
 (defun zettelkasten-db--title-filename (&optional filenames)
-  "Returns list of lists: title, filename, zkid only for files."
+  "Returns list of lists: '(title filename zkid) files."
   (if filenames
       (zettelkasten-db-query [:select [title filename zkid]
                               :from nodes
