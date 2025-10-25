@@ -288,7 +288,7 @@ SELECT subject, predicate, object FROM edges_inferred")
 
 (defun zettelkasten--get-file-id (filename element)
   "Get id for FILENAME using ELEMENT."
-  (or (zettelkasten--get-keyword "CUSTOM_ID" (when element))
+  (or (zettelkasten--get-keyword "CUSTOM_ID" element)
       (zettelkasten--filename-to-id filename)))
 
 (defun zettelkasten--get-ids (filename element)
@@ -300,7 +300,7 @@ SELECT subject, predicate, object FROM edges_inferred")
 
 (defun zettelkasten--get-file-title (&optional element)
   "Get title of zettel using ELEMENT if provided."
-  (zettelkasten--get-keyword "TITLE" (when element)))
+  (zettelkasten--get-keyword "TITLE" element))
 
 (defun zettelkasten--get-file-node (filename element)
   (let ((f-zkid (zettelkasten--get-file-id filename element))
