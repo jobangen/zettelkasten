@@ -433,6 +433,7 @@ SELECT subject, predicate, object FROM edges_inferred")
     (append key-prop turtle orglinks)))
 
 (defun zettelkasten-db--delete-filedata (filename zkids)
+  "Delete old data from db."
   (let ((vzkids (vconcat zkids)))
     (zettelkasten-db-query [:delete-from files
                             :where (= filename $s1)]
@@ -445,8 +446,7 @@ SELECT subject, predicate, object FROM edges_inferred")
                            vzkids)
     (zettelkasten-db-query [:delete-from tags
                             :where (in zkid $v1)]
-                           vzkids))
-  (message "result filename %s" filename))
+                           vzkids)))
 
 (defun zettelkasten-db--insert-filedata (data)
   "Insert data to tables files, nodes, edges, tags."
@@ -527,14 +527,18 @@ SELECT subject, predicate, object FROM edges_inferred")
              (db-hash (caar (zettelkasten-db-query [:select hash :from files
                                                     :where (= filename $s1)]
                                                    ,filename))))
-        (unless (string= ,hash db-hash)
-          (zettelkasten-db--construct-filedata ,filename ,hash ,nil ,org-content-string))))
+        (if (not (string= ,hash db-hash))
+            (zettelkasten-db--construct-filedata ,filename ,hash ,nil ,org-content-string)
+          nil)))
    (lambda (result)
-     (zettelkasten-db--delete-filedata filename (plist-get result ':zkids))
-     (zettelkasten-db--insert-filedata result)
-     (when zettelkasten-org-agenda-integration
-       (zettelkasten-update-org-agenda-files))
-     (message "[zk] async update done: '%s'" (file-name-base (plist-get result ':filename))))))
+     (if result
+         (progn
+           (zettelkasten-db--delete-filedata filename (plist-get result ':zkids))
+           (zettelkasten-db--insert-filedata result)
+           (when zettelkasten-org-agenda-integration
+             (zettelkasten-update-org-agenda-files))
+           (message "[zk] async update done: '%s'" (file-name-base (plist-get result ':filename))))
+       (message "[zk] no changes '%s'" (file-name-base filename))))))
 
 (defun zettelkasten-db--mark-dirty ()
   (unless (string-match-p "_archive$" (buffer-file-name))
