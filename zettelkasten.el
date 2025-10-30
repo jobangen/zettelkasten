@@ -95,7 +95,7 @@
   :group 'zettelkasten
   :type 'string)
 
-(defcustom zettelkasten-collection-predicate ""
+(defcustom zettelkasten-collection-predicate "prov:wasMemberOf"
   "Default predicate for collection keyword and filetag."
   :group 'zettelkasten
   :type 'string)

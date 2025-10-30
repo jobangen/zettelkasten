@@ -524,6 +524,7 @@ SELECT subject, predicate, object FROM edges_inferred")
       (require 'emacsql-sqlite-builtin)
       (require 'zettelkasten)
       (let* ((zettelkasten-zettel-directory ,zettelkasten-zettel-directory)
+             (zettelkasten-collection-predicate ,zettelkasten-collection-predicate)
              (db-hash (caar (zettelkasten-db-query [:select hash :from files
                                                     :where (= filename $s1)]
                                                    ,filename))))
