@@ -527,7 +527,7 @@ Used in `zettelkasten--filename-to-id' to process last part of filename."
   "Create node form heading by adding RDFTYPE, PROV-ID and set relation to parent ressource with PREDICATE if provided."
   (interactive)
   (zettelkasten-set-type-headline rdftype)
-  (zettelkasten-id-get-create prov-id)
+  (zettelkasten-id-get-create prov-id nil t)
   (zettelkasten-heading-set-relation-to-context predicate)
   (org-set-property "GENERATED_AT_TIME"
                     (concat (format-time-string "%Y-%m-%dT%H:%M:%S+")
