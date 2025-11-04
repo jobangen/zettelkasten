@@ -117,6 +117,11 @@
   :group 'zettelkasten
   :type 'string)
 
+(defcustom zettelkasten-link-icon-overlays nil
+  "Symbols to preprend links of certains types."
+  :group 'zettelkasten
+  :type 'list)
+
 (defun zettelkasten-default-filename-to-id (filename)
   (cond ((s-prefix? "txt" filename)
          (s-chop-prefix "txt/" filename))
@@ -860,6 +865,32 @@ Uses PATH-IN internally to return path."
                             " ")
                     (nth 3 link)))
             backlinks)))
+
+(when zettelkasten-link-icon-overlays
+  (add-hook
+   'org-mode-hook
+   (lambda ()
+     (advice-add 'org-activate-links :after #'zettelkasten-make-link-subtype-visible))))
+
+(defun zettelkasten--put-text-prop-display (pos char)
+  "Put text propery display at POS with CHAR."
+  (put-text-property
+   pos (+ 1 pos)
+   'display (concat char (buffer-substring pos (+ 1 pos)))))
+
+(defun zettelkasten-make-link-subtype-visible (&rest _)
+  "Make the zettelkasten link subtype visible in descriptive links."
+  (unless (string= (buffer-name) "*Org Agenda*")
+    (save-match-data
+      (let ((s (match-string 1))
+            (beg (match-beginning 1)))
+        (when (and s (string-match "\\[\\[zk:" s))
+          (let* ((s-split (split-string s "::"))
+                 (link-type (when (< 1 (length s-split))
+                              (cadr s-split)))
+                 (link-icon (cdr (assoc link-type zettelkasten-link-icon-overlays))))
+            (when link-icon
+              (zettelkasten--put-text-prop-display beg link-icon))))))))
 
 ;;;###autoload
 (defun zettelkasten-open-backlink ()
