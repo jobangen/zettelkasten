@@ -872,11 +872,13 @@ Uses PATH-IN internally to return path."
    (lambda ()
      (advice-add 'org-activate-links :after #'zettelkasten-make-link-subtype-visible))))
 
-(defun zettelkasten--put-text-prop-display (pos char)
+(defun zettelkasten--put-text-prop-display (pos svg-path)
   "Put text propery display at POS with CHAR."
   (put-text-property
    pos (+ 1 pos)
-   'display (concat char (buffer-substring pos (+ 1 pos)))))
+   'display
+   (create-image
+    svg-path nil nil :ascent 'center)))
 
 (defun zettelkasten-make-link-subtype-visible (&rest _)
   "Make the zettelkasten link subtype visible in descriptive links."
