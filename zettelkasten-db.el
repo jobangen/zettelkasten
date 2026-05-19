@@ -448,15 +448,29 @@ SELECT subject, predicate, object FROM edges_inferred")
                             :where (in zkid $v1)]
                            vzkids)))
 
-(defun zettelkasten-db--insert-filedata (data)
+(defun zettelkasten-db--insert-filedata (data &optional debug)
   "Insert data to tables files, nodes, edges, tags."
   (let ((vfile (plist-get data ':file))
         (vnodes (plist-get data ':nodes))
         (vedges (plist-get data ':edges))
         (vtags (plist-get data ':tags)))
-    (zettelkasten-db-query [:insert :into files
-                            :values $v1]
-                           vfile)
+    (when debug
+      (message "Inserting file: %S" vfile))
+    (if debug
+        (let ((seen-ids (make-hash-table :test 'equal)))
+          (dolist (vnode vnodes)
+            (let ((id (aref vnode 2)))
+              (when (gethash id seen-ids)
+                (error "Duplicate ID: %s" vnode))
+              (puthash id t seen-ids)
+              (message "%S" vnode)
+              (zettelkasten-db-query [:insert :into nodes
+                                      :values $v1]
+                                     vnode))))
+      (zettelkasten-db-query [:insert :into nodes
+                              :values $v1]
+                             vnodes))
+
     (zettelkasten-db-query [:insert :into nodes
                             :values $v1]
                            vnodes)
@@ -683,6 +697,18 @@ SELECT subject, predicate, object FROM edges_inferred")
       (if (<= (safe-length output-nodes) zettelkasten-descriptor-cycle-threshold)
           output-nodes
         (zettelkasten-db--nodes-with-descriptor output-nodes)))))
+
+;;;###autoload
+(defun zettelkasten-db--debug-insertion ()
+  (interactive)
+  (zettelkasten-db--insert-filedata
+   (zettelkasten-db--construct-filedata
+    (buffer-file-name)
+    (secure-hash 'sha1 (current-buffer))
+    (org-element-parse-buffer))
+   t))
+
+
 
 (provide 'zettelkasten-db)
 ;;; zettelkasten.el ends here
