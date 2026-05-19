@@ -456,6 +456,10 @@ SELECT subject, predicate, object FROM edges_inferred")
         (vtags (plist-get data :tags)))
     (when debug
       (message "Inserting file: %S" vfile))
+    (zettelkasten-db-query [:insert :into files
+                            :values $v1]
+                           vfile)
+
     (if debug
         (let ((seen-ids (make-hash-table :test 'equal)))
           (dolist (vnode vnodes)
@@ -470,10 +474,6 @@ SELECT subject, predicate, object FROM edges_inferred")
       (zettelkasten-db-query [:insert :into nodes
                               :values $v1]
                              vnodes))
-
-    (zettelkasten-db-query [:insert :into nodes
-                            :values $v1]
-                           vnodes)
     (zettelkasten-db-query [:insert :into edges
                             :values $v1]
                            vedges)
