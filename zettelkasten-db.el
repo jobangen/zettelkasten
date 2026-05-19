@@ -450,10 +450,10 @@ SELECT subject, predicate, object FROM edges_inferred")
 
 (defun zettelkasten-db--insert-filedata (data &optional debug)
   "Insert data to tables files, nodes, edges, tags."
-  (let ((vfile (plist-get data ':file))
-        (vnodes (plist-get data ':nodes))
-        (vedges (plist-get data ':edges))
-        (vtags (plist-get data ':tags)))
+  (let ((vfile (plist-get data :file))
+        (vnodes (plist-get data :nodes))
+        (vedges (plist-get data :edges))
+        (vtags (plist-get data :tags)))
     (when debug
       (message "Inserting file: %S" vfile))
     (if debug
