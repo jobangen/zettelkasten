@@ -66,6 +66,9 @@ Options: `immediately' `immediately-async' and `when-idle'."
 (defvar zettelkasten-db-dirty nil
   "Zettel that are to be updated. List of filenames.")
 
+(defvar zettelkasten--skip-db-update nil
+  "Set to t to skip database updates during bulk operations.")
+
 (defvar zettelkasten-db--connection (make-hash-table :test #'equal)
   "Database connection to Zettelkasten database.")
 
@@ -575,18 +578,19 @@ SELECT subject, predicate, object FROM edges_inferred")
 
 (defun zettelkasten-db-update (filename hash)
   "Update database"
-  (pcase zettelkasten-db-update-method
-    ('immediately
-     (zettelkasten-db-update-zettel filename hash (org-element-parse-buffer)))
-    ('when-idle
-     (zettelkasten-db--mark-dirty))
-    ('immediately-async
-     (zettelkasten-db-update-zettel-async
-      filename
-      hash
-      (buffer-substring-no-properties (point-min) (point-max))))
-    (_
-     (user-error "Invalid `zettelkasten-db-update-method'"))))
+  (unless zettelkasten--skip-db-update
+    (pcase zettelkasten-db-update-method
+      ('immediately
+       (zettelkasten-db-update-zettel filename hash (org-element-parse-buffer)))
+      ('when-idle
+       (zettelkasten-db--mark-dirty))
+      ('immediately-async
+       (zettelkasten-db-update-zettel-async
+        filename
+        hash
+        (buffer-substring-no-properties (point-min) (point-max))))
+      (_
+       (user-error "Invalid `zettelkasten-db-update-method'")))))
 
 (defun zettelkasten-zettel-p (&optional filename)
   (s-starts-with?
